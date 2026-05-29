@@ -1,0 +1,245 @@
+.studio-shell {
+  min-height: 100vh;
+  padding: 18px;
+  background:
+    linear-gradient(90deg, rgba(0, 255, 102, 0.035) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0, 255, 102, 0.035) 1px, transparent 1px),
+    var(--bg-main);
+  background-size: 34px 34px;
+}
+
+.studio-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(10, 15, 10, 0.9);
+}
+
+.studio-header h1,
+.studio-header p {
+  margin: 0;
+}
+
+.studio-header h1 {
+  font-size: 24px;
+}
+
+.studio-header p,
+.header-tagline {
+  color: var(--text-muted);
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.left-rail,
+.right-workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.right-workspace {
+  grid-template-rows: auto minmax(180px, 1fr);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(10, 15, 10, 0.94);
+  box-shadow: 0 0 26px rgba(0, 255, 102, 0.05);
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-title-row h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.panel-title-row span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.json-panel textarea {
+  width: 100%;
+  min-height: 430px;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: 0;
+  resize: vertical;
+  background: #050805;
+  color: var(--text-main);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.validation-list {
+  display: grid;
+  gap: 6px;
+  max-height: 120px;
+  overflow: auto;
+  padding: 10px 14px;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.controls-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.controls-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.controls-panel select {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 0 10px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.segmented-control button.active,
+.timeline-list button.active {
+  border-color: var(--accent);
+  background: rgba(0, 255, 102, 0.12);
+}
+
+.export-button {
+  border-color: var(--accent);
+  background: rgba(0, 255, 102, 0.13);
+}
+
+.export-status {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.export-status progress {
+  width: 100%;
+}
+
+.export-status.failed {
+  border-color: var(--danger);
+}
+
+.preview-panel {
+  padding-bottom: 14px;
+}
+
+.preview-panel .lld-preview {
+  margin: 14px auto;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.timeline-panel {
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.timeline-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.timeline-list button {
+  justify-content: flex-start;
+  min-height: 54px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.timeline-list strong {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-list span,
+.timeline-list small {
+  color: var(--text-muted);
+}
+
+.export-page {
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.export-page .lld-preview {
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+}
+
+.export-page-state {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+@media (max-width: 1100px) {
+  .studio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "lld-visualizer-video-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite --host 0.0.0.0 --port 5173\" \"tsx server/index.ts\"",
+    "dev:alt": "concurrently \"cross-env API_TARGET=http://localhost:3002 vite --host 0.0.0.0 --port 5174\" \"cross-env PORT=3002 FRONTEND_ORIGIN=http://localhost:5174 tsx server/index.ts\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "server": "tsx server/index.ts"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "express": "^4.21.2",
+    "lucide-react": "^0.468.0",
+    "playwright": "^1.49.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5"
+  }
+}

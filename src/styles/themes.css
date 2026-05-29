@@ -1,0 +1,17 @@
+:root {
+  --bg-main: #050705;
+  --bg-panel: #0a0f0a;
+  --bg-card: #101810;
+  --border: #1f3d2b;
+  --text-main: #eafff1;
+  --text-muted: #8fbf9f;
+  --accent: #00ff66;
+  --accent-soft: #9bffb8;
+  --warning: #ffd166;
+  --danger: #ff4d4d;
+  --class-bg: #0f1a12;
+  --class-border: #00ff66;
+  --interface-border: #00ccff;
+  --abstract-border: #ffd166;
+  --relationship: #9bffb8;
+}

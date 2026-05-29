@@ -1,6 +1,7 @@
+import type { LldCodeFile, LldEntity, LldVideoConfig } from "../topics/topicTypes";
+import { normalizeLldConfig } from "../topics/normalizeConfig";
 import type { LldScene } from "./sceneTypes";
 import { speedMultiplier } from "./timing";
-import type { LldCodeFile, LldEntity, LldVideoConfig } from "../topics/topicTypes";
 
 export function generateLldTimeline(config: LldVideoConfig): LldScene[] {
   return generateInterviewTopicTimeline(config);
@@ -10,90 +11,100 @@ export function generateParkingLotTimeline(config: LldVideoConfig): LldScene[] {
   return generateInterviewTopicTimeline(config);
 }
 
-export function generateInterviewTopicTimeline(config: LldVideoConfig): LldScene[] {
-  const entities = config.problem.entities;
-  const relationships = config.problem.relationships;
-  const flows = config.problem.flows;
-  const patterns = config.problem.patterns || [];
-  const codeFiles = config.problem.codeFiles?.length ? config.problem.codeFiles : generateJavaCodeSnippets(config.title, entities);
-  const dryRun = config.problem.dryRuns?.[0];
+export function generateInterviewTopicTimeline(rawConfig: LldVideoConfig): LldScene[] {
+  const config = normalizeLldConfig(rawConfig);
+  const { problem } = config;
+  const entities = problem.entities;
+  const relationships = problem.relationships;
+  const flows = problem.flows;
+  const patterns = problem.patterns || [];
+  const codeFiles = problem.codeFiles?.length ? problem.codeFiles : generateJavaCodeSnippets(config.title, entities);
+  const dryRun = problem.dryRuns?.[0];
   const factor = speedMultiplier(config.settings.speed);
   const duration = (ms: number) => Math.round(ms * factor);
   const mainCoordinator = entities.find((entity) => ["singleton", "service"].includes(entity.type)) ?? entities[0];
-  const firstFlow = flows[0];
-  const secondFlow = flows[1];
+  const fallbackFlow = {
+    id: "core-flow",
+    title: "Core Flow",
+    steps: [{
+      actor: "Client",
+      target: mainCoordinator?.name ?? "Service",
+      method: "execute(request)",
+      explanation: "The caller invokes the main use case and receives a domain result."
+    }]
+  };
+  const firstFlow = flows[0] ?? fallbackFlow;
+  const secondFlow = flows[1] ?? flows[0] ?? fallbackFlow;
+  const primaryPattern = patterns[0];
+  const primaryCode = codeFiles[0];
 
   const scenes: LldScene[] = [
-    {
+    withNarration({
       id: "title",
       type: "title",
       title: "Title",
-      durationMs: duration(2500),
+      durationMs: duration(3000),
       titleText: config.title,
-      subtitle: "Low Level Design Explained Visually",
+      subtitle: `${config.difficulty ?? "medium"} LLD Interview Design`,
       rightPanel: {
-        heading: "Goal",
-        body: `Design clean classes, responsibilities, relationships, and object interactions for ${config.title}.`
-      },
-      narration: `Let us design ${config.title} using low-level design principles.`
-    },
-    {
+        heading: "Interview Goal",
+        body: `Design clean classes, interfaces, object flows, edge cases, tests, and trade-offs for ${config.title}.`
+      }
+    }),
+    withNarration({
       id: "problem-statement",
       type: "text",
       title: "Problem Statement",
-      durationMs: duration(4200),
+      durationMs: duration(5000),
       cards: buildProblemStatementCards(config),
       rightPanel: {
-        heading: "Problem Statement",
+        heading: "Problem Framing",
         bullets: buildProblemStatementCards(config),
-        interviewNote: "State the scope clearly before drawing classes."
+        interviewNote: "State scope, assumptions, and key workflows before drawing classes."
       }
-    },
-    {
+    }),
+    withNarration({
       id: "requirements",
       type: "text",
       title: "Functional Requirements",
       durationMs: duration(5000),
-      cards: config.problem.requirements,
+      cards: problem.requirements,
       rightPanel: {
         heading: "Functional Requirements",
-        bullets: config.problem.requirements.slice(0, 5),
-        interviewNote: "Always clarify requirements before jumping into classes."
-      },
-      narration: "Start by listing the behavior the system must support."
-    },
-    {
-      id: "main-entities",
+        bullets: problem.requirements.slice(0, 5),
+        interviewNote: "Requirements become methods, state transitions, and tests."
+      }
+    }),
+    withNarration({
+      id: "constraints",
+      type: "text",
+      title: "Constraints and Assumptions",
+      durationMs: duration(5000),
+      cards: problem.constraints ?? [],
+      rightPanel: {
+        heading: "Constraints",
+        bullets: (problem.constraints ?? []).slice(0, 5),
+        interviewNote: "Constraints decide whether the design needs locks, strategies, or repositories."
+      }
+    }),
+    withNarration({
+      id: "core-objects",
       type: "entities",
-      title: "Main Entities",
+      title: "Core Objects and Classes",
       durationMs: duration(5500),
       entities,
-      highlightedEntityIds: entities.slice(0, 5).map((entity) => entity.id),
+      highlightedEntityIds: entities.slice(0, 6).map((entity) => entity.id),
       rightPanel: {
-        heading: "Identify Core Entities",
+        heading: "Core Objects",
         bullets: entities.slice(0, 6).map((entity) => `${entity.name}: ${entity.responsibility}`),
-        interviewNote: "Good LLD starts by separating responsibilities across entities."
-      },
-      narration: "Now identify the main classes in the system."
-    },
-    {
-      id: "entity-responsibility",
-      type: "entities",
-      title: "Responsibility Breakdown",
-      durationMs: duration(6200),
-      entities,
-      highlightedEntityIds: entities.slice(2).map((entity) => entity.id),
-      rightPanel: {
-        heading: "Class Responsibilities",
-        bullets: entities.slice(2, 7).map((entity) => `${entity.name} owns ${entity.responsibility.toLowerCase()}.`),
-        interviewNote: "A class should have one clear reason to change."
+        interviewNote: "Good LLD separates object responsibilities before adding methods."
       }
-    },
-    {
+    }),
+    withNarration({
       id: "class-diagram",
       type: "classDiagram",
       title: "Class Diagram",
-      durationMs: duration(6500),
+      durationMs: duration(7000),
       entities,
       relationships,
       highlightedEntityIds: [],
@@ -103,148 +114,223 @@ export function generateInterviewTopicTimeline(config: LldVideoConfig): LldScene
         bullets: [
           `${mainCoordinator.name} coordinates the main workflow.`,
           `${entities[0]?.name ?? "Core entity"} anchors the model.`,
-          "Relationships show ownership, inheritance, and runtime dependencies.",
-          "Patterns are isolated to the classes that need flexibility."
+          "Composition owns object lifetime; dependencies express collaboration.",
+          "Long explanations stay in the panel so the diagram remains clean."
         ],
-        interviewNote: "Keep the diagram readable; explain details in the side panel."
+        interviewNote: "Use the diagram to prove ownership and collaboration, not to dump text."
       }
-    }
-  ];
-
-  relationships.forEach((relationship, index) => {
-    scenes.push({
-      id: `relationship-${index + 1}`,
-      type: "relationship",
-      title: "Relationships",
-      durationMs: duration(2800),
-      entities,
-      relationships,
-      activeRelationshipIndex: index,
+    }),
+    withNarration({
+      id: "interface-design",
+      type: "interfaceDesign",
+      title: "Interface Design",
+      durationMs: duration(5500),
+      interfaces: problem.interfaces ?? [],
       rightPanel: {
-        heading: `${relationship.from} to ${relationship.to}`,
-        bullets: [
-          `${relationship.type.replace("-", " ")} relationship`,
-          relationship.label || "This connection explains ownership, reuse, or inheritance.",
-          "Highlight one relationship at a time to avoid visual noise."
-        ],
-        interviewNote: "Relationships show how objects collaborate at runtime."
+        heading: "Interface Contracts",
+        bullets: (problem.interfaces ?? []).slice(0, 4).map((item) => `${item.name}: ${item.responsibility}`),
+        interviewNote: "Use interfaces only where behavior genuinely varies."
       }
-    });
-  });
-
-  patterns.forEach((pattern, index) => {
-    scenes.push({
-      id: `pattern-${index + 1}`,
-      type: "pattern",
-      title: "Design Pattern",
-      durationMs: duration(4200),
-      pattern,
-      entities,
-      highlightedEntityIds: entities.filter((entity) => pattern.usedIn.includes(entity.name)).map((entity) => entity.id),
-      rightPanel: {
-        heading: pattern.name,
-        bullets: [`Used in ${pattern.usedIn}`, pattern.reason],
-        interviewNote: "Name a pattern only when it solves a concrete design pressure."
-      }
-    });
-  });
-
-  if (config.settings.showSequenceDiagram) {
-    for (const [index, flow] of flows.slice(0, 2).entries()) {
-      scenes.push({
-        id: `${flow.id || `flow-${index + 1}`}-sequence`,
-        type: "sequence",
-        title: flow.title,
-        durationMs: duration(index === 0 ? 6200 : 5200),
-        flow,
-        activeStepIndex: 0,
-        rightPanel: {
-          heading: flow.title,
-          bullets: flow.steps.slice(0, 5).map((step) => step.explanation),
-          interviewNote: "Sequence flow proves that your classes are usable, not just drawn."
-        }
-      });
-    }
-  }
-
-  scenes.push({
-    id: "code-structure",
-    type: "text",
-    title: "Code Structure",
-    durationMs: duration(4200),
-    cards: codeFiles.map((file) => file.filename),
-    rightPanel: {
-      heading: "Code Structure",
-      bullets: codeFiles.map((file) => file.filename),
-      interviewNote: "Split code around responsibilities instead of one large manager class."
-    }
-  });
-
-  if (config.settings.showCode) {
-    for (const file of codeFiles.slice(0, 4)) {
-      scenes.push({
-        id: `code-${file.filename.replace(/\W+/g, "-").toLowerCase()}`,
-        type: "code",
-        title: `Code Typing: ${file.filename}`,
-        durationMs: duration(7000),
-        filename: file.filename,
-        language: file.language,
-        code: file.code,
-        charsPerSecond: 42,
-        rightPanel: {
-          heading: file.filename,
-          bullets: [
-            "Show only the core fields and methods.",
-            "Keep constructor and behavior close to the entity.",
-            "Avoid mixing unrelated responsibilities."
-          ],
-          interviewNote: "Readable code snippets are better than a full production implementation."
-        }
-      });
-    }
-  }
-
-  if (dryRun) {
-    scenes.push({
-      id: "dry-run",
-      type: "dryRun",
-      title: "Example Dry Run",
+    }),
+    withNarration({
+      id: "method-contracts",
+      type: "methodContracts",
+      title: "Public Method Contracts",
       durationMs: duration(6200),
-      dryRun,
+      methods: problem.publicMethods ?? [],
+      rightPanel: {
+        heading: "Public Methods",
+        bullets: (problem.publicMethods ?? []).slice(0, 5).map((method) => `${method.owner}.${method.signature}: ${method.purpose}`),
+        interviewNote: "Method contracts turn requirements into testable behavior."
+      }
+    }),
+    withNarration({
+      id: "object-collaboration",
+      type: "objectFlow",
+      title: "Object Collaboration Flow",
+      durationMs: duration(6000),
+      flow: firstFlow,
+      rightPanel: {
+        heading: firstFlow?.title ?? "Object Collaboration",
+        bullets: firstFlow?.steps.slice(0, 5).map((step) => `${step.actor} calls ${step.target}.${step.method}`) ?? [],
+        interviewNote: "A collaboration flow proves that the class model is executable."
+      }
+    }),
+    withNarration({
+      id: "sequence-flow",
+      type: "sequence",
+      title: secondFlow?.title ?? "Sequence Diagram",
+      durationMs: duration(6200),
+      flow: secondFlow,
       activeStepIndex: 0,
       rightPanel: {
-        heading: dryRun.title,
-        bullets: dryRun.steps.slice(0, 5),
-        interviewNote: "Dry runs catch missing state transitions like freeing a spot."
+        heading: secondFlow?.title ?? "Sequence Flow",
+        bullets: secondFlow?.steps.slice(0, 5).map((step) => step.explanation) ?? [],
+        interviewNote: "Sequence diagrams expose missing dependencies and invalid state changes."
       }
-    });
-  }
-
-  scenes.push(
-    {
+    }),
+    withNarration({
+      id: "state-machine",
+      type: "stateMachine",
+      title: "State Transitions",
+      durationMs: duration(6000),
+      transitions: problem.stateTransitions ?? [],
+      rightPanel: {
+        heading: "State Machine",
+        bullets: (problem.stateTransitions ?? []).slice(0, 5).map((transition) => `${transition.from} -> ${transition.to}: ${transition.explanation}`),
+        interviewNote: "Explicit states prevent invalid operations from slipping into code."
+      }
+    }),
+    withNarration({
+      id: "design-pattern",
+      type: "pattern",
+      title: "Design Pattern Choice",
+      durationMs: duration(5000),
+      pattern: primaryPattern ?? {
+        name: "Composition",
+        usedIn: mainCoordinator.name,
+        reason: "Keeps ownership and collaboration explicit without unnecessary inheritance."
+      },
+      entities,
+      highlightedEntityIds: primaryPattern
+        ? entities.filter((entity) => primaryPattern.usedIn.includes(entity.name)).map((entity) => entity.id)
+        : [mainCoordinator.id],
+      rightPanel: {
+        heading: primaryPattern?.name ?? "Composition",
+        bullets: [
+          `Used in ${primaryPattern?.usedIn ?? mainCoordinator.name}`,
+          primaryPattern?.reason ?? "Composition keeps the design extensible without forcing inheritance."
+        ],
+        interviewNote: "Name a pattern only when it solves a concrete design pressure."
+      }
+    }),
+    withNarration({
+      id: "data-structures",
+      type: "dataStructures",
+      title: "Data Structures Used",
+      durationMs: duration(5000),
+      items: problem.dataStructures ?? [],
+      rightPanel: {
+        heading: "Data Structures",
+        bullets: (problem.dataStructures ?? []).slice(0, 5),
+        interviewNote: "Data structures should justify time complexity and state ownership."
+      }
+    }),
+    withNarration({
+      id: "edge-cases",
+      type: "edgeCases",
+      title: "Edge Cases",
+      durationMs: duration(6000),
+      items: problem.edgeCases ?? [],
+      rightPanel: {
+        heading: "Edge Cases",
+        bullets: (problem.edgeCases ?? []).slice(0, 5),
+        interviewNote: "Edge cases reveal whether the design is robust or just happy-path."
+      }
+    }),
+    withNarration({
+      id: "error-handling",
+      type: "errorHandling",
+      title: "Error Handling",
+      durationMs: duration(5500),
+      items: problem.errorHandling ?? [],
+      rightPanel: {
+        heading: "Error Handling",
+        bullets: (problem.errorHandling ?? []).slice(0, 5),
+        interviewNote: "Handle failure before mutating shared or persistent state."
+      }
+    }),
+    withNarration({
+      id: "concurrency",
+      type: "concurrency",
+      title: "Concurrency and Thread Safety",
+      durationMs: duration(6000),
+      items: problem.concurrencyConcerns ?? [],
+      rightPanel: {
+        heading: "Concurrency",
+        bullets: (problem.concurrencyConcerns ?? []).slice(0, 5),
+        interviewNote: "Interviewers often push LLD designs with concurrent requests."
+      }
+    }),
+    withNarration({
+      id: "code-skeleton",
+      type: "code",
+      title: `Code Skeleton: ${primaryCode?.filename ?? "CoreService.java"}`,
+      durationMs: duration(8000),
+      filename: primaryCode?.filename ?? "CoreService.java",
+      language: primaryCode?.language ?? config.language,
+      code: primaryCode?.code ?? generateJavaCodeSnippets(config.title, entities)[0].code,
+      charsPerSecond: 48,
+      rightPanel: {
+        heading: "Code Skeleton",
+        bullets: [
+          "Show the core fields and method contracts.",
+          "Keep behavior near the object that owns the state.",
+          "Avoid turning the coordinator into a catch-all class."
+        ],
+        interviewNote: "Code skeletons should prove design shape, not become full production code."
+      }
+    }),
+    withNarration({
+      id: "test-cases",
+      type: "testCases",
+      title: "Unit Test Cases",
+      durationMs: duration(6000),
+      testCases: problem.testCases ?? [],
+      rightPanel: {
+        heading: "Tests as Design Proof",
+        bullets: (problem.testCases ?? []).slice(0, 5).map((test) => test.title),
+        interviewNote: "Tests prove the class responsibilities and edge cases are clear."
+      }
+    }),
+    withNarration({
+      id: "trade-offs",
+      type: "tradeOffs",
+      title: "Trade-offs",
+      durationMs: duration(5500),
+      items: problem.tradeoffs ?? [],
+      rightPanel: {
+        heading: "Trade-offs",
+        bullets: (problem.tradeoffs ?? []).slice(0, 5),
+        interviewNote: "Strong candidates explain why they did not over-engineer."
+      }
+    }),
+    withNarration({
+      id: "pitfalls",
+      type: "pitfalls",
+      title: "Interview Pitfalls",
+      durationMs: duration(5000),
+      items: problem.pitfalls ?? problem.mistakesToAvoid ?? [],
+      rightPanel: {
+        heading: "Mistakes to Avoid",
+        bullets: (problem.pitfalls ?? problem.mistakesToAvoid ?? []).slice(0, 5),
+        interviewNote: "Calling out pitfalls shows you understand failure modes."
+      }
+    }),
+    withNarration({
       id: "summary",
       type: "summary",
       title: "Final LLD Summary",
-      durationMs: duration(5200),
+      durationMs: duration(5000),
       entities,
       summaryBullets: [
-        "Clear entities with focused responsibilities.",
-        "Class diagram explains structure.",
-        "Sequence diagrams explain runtime collaboration.",
-        "Patterns are applied only where they add flexibility."
+        "Requirements map to public methods.",
+        "Classes own focused state and behavior.",
+        "Sequence and state diagrams prove runtime correctness.",
+        "Tests and trade-offs close the interview discussion."
       ],
       rightPanel: {
         heading: "Final Summary",
         bullets: [
-          `${mainCoordinator.name} coordinates the core use cases.`,
-          `${entities.slice(0, 3).map((entity) => entity.name).join(", ")} carry the main state.`,
-          firstFlow ? `${firstFlow.title} explains the happy path.` : "The happy path should be shown with a sequence flow.",
-          secondFlow ? `${secondFlow.title} covers an important alternate flow.` : "Call out tradeoffs after the basic design."
+          `${mainCoordinator.name} coordinates core use cases.`,
+          `${entities.slice(0, 3).map((entity) => entity.name).join(", ")} carry primary state.`,
+          firstFlow ? `${firstFlow.title} explains object collaboration.` : "The main flow validates the class design.",
+          "Edge cases, tests, and trade-offs make the design interview-ready."
         ],
-        interviewNote: "End with tradeoffs and how the design can scale."
+        interviewNote: "End by showing how the design can evolve without changing everything."
       }
-    },
-    {
+    }),
+    withNarration({
       id: "end",
       type: "end",
       title: "End Screen",
@@ -252,17 +338,28 @@ export function generateInterviewTopicTimeline(config: LldVideoConfig): LldScene
       text: "LLD Visualizer Video Studio",
       rightPanel: {
         heading: "Next Steps",
-        bullets: (config.problem.tradeoffs?.length ? config.problem.tradeoffs : [
-          "Add persistence for important state.",
-          "Add concurrency controls around shared resources.",
-          "Add observability and failure handling."
-        ]).slice(0, 3),
-        interviewNote: "Discuss extensions after presenting the core design."
+        bullets: [
+          "Add persistence and external API boundaries.",
+          "Add metrics and operational failure handling.",
+          "Revisit trade-offs if requirements change."
+        ],
+        interviewNote: "A good LLD answer is scoped, testable, and extensible."
       }
-    }
-  );
+    })
+  ];
 
   return scenes;
+}
+
+function withNarration<T extends LldScene>(scene: T): T {
+  if (scene.narration) return scene;
+  const bullets = scene.rightPanel.bullets?.join(" ");
+  return {
+    ...scene,
+    narration: [scene.rightPanel.heading, scene.rightPanel.body, bullets, scene.rightPanel.interviewNote]
+      .filter(Boolean)
+      .join(" ")
+  };
 }
 
 function buildProblemStatementCards(config: LldVideoConfig) {

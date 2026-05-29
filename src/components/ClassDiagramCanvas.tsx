@@ -1,5 +1,6 @@
 import type { LldClassDiagramScene, LldRelationshipScene } from "../engine/sceneTypes";
 import { buildClassDiagramLayout, resolveEntityId } from "../engine/layoutEngine";
+import { mentionedEntityIds, mentionedRelationshipIndexes } from "../engine/visualSemantics";
 import { ClassBox } from "./ClassBox";
 import { RelationshipArrow } from "./RelationshipArrow";
 
@@ -11,7 +12,11 @@ type Props = {
 export function ClassDiagramCanvas({ scene, progress }: Props) {
   const layout = buildClassDiagramLayout(scene.entities);
   const byId = new Map(layout.map((item) => [item.id, item]));
-  const highlightedEntities = new Set("highlightedEntityIds" in scene ? scene.highlightedEntityIds ?? [] : []);
+  const highlightedEntities = new Set([
+    ...("highlightedEntityIds" in scene ? scene.highlightedEntityIds ?? [] : []),
+    ...mentionedEntityIds(scene.narration, scene.entities)
+  ]);
+  const narratedRelationships = new Set(mentionedRelationshipIndexes(scene.narration, scene.relationships));
   const activeRelationshipIndex =
     scene.type === "relationship"
       ? scene.activeRelationshipIndex
@@ -39,7 +44,7 @@ export function ClassDiagramCanvas({ scene, progress }: Props) {
               x2={to.x + to.width / 2}
               y2={to.y + to.height / 2}
               relationship={relationship}
-              active={index === activeRelationshipIndex}
+              active={index === activeRelationshipIndex || narratedRelationships.has(index)}
             />
           );
         })}

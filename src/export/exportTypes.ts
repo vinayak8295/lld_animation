@@ -4,6 +4,8 @@ import type { LldVideoConfig } from "../topics/topicTypes";
 export type ExportRequest = {
   config: LldVideoConfig;
   scenes: LldScene[];
+  voiceoverScript?: string;
+  cleanVoiceoverScript?: string;
 };
 
 export type ExportStatus = {
@@ -18,4 +20,9 @@ export type ExportStatus = {
 export type StoredProject = ExportRequest & {
   exportId: string;
   createdAt: string;
+  scriptMetadata?: {
+    sceneCount: number;
+    totalDurationMs: number;
+    hasEditedNarration: boolean;
+  };
 };

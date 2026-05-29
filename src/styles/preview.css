@@ -505,6 +505,174 @@
   color: var(--text-muted);
 }
 
+.contract-grid,
+.method-contracts,
+.test-case-grid,
+.insight-list,
+.object-flow,
+.state-machine {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+}
+
+.contract-grid,
+.method-contracts,
+.test-case-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.contract-card,
+.method-card,
+.test-case-card,
+.insight-item,
+.object-flow-step,
+.state-transition {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(16, 24, 16, 0.88);
+}
+
+.contract-card span,
+.method-card span,
+.test-case-card span,
+.insight-item span,
+.object-flow-step span {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contract-card h3,
+.method-card h3,
+.test-case-card h3 {
+  margin: 7px 0;
+  font-size: 18px;
+}
+
+.contract-card p,
+.method-card p,
+.test-case-card p,
+.insight-item p,
+.object-flow-step p,
+.state-transition p {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.contract-card ul {
+  margin: 10px 0;
+  padding-left: 16px;
+  color: var(--accent-soft);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.contract-card small,
+.method-card small {
+  color: var(--warning);
+}
+
+.method-card.active,
+.test-case-card:hover,
+.insight-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(0, 255, 102, 0.16);
+}
+
+.object-flow-step {
+  display: grid;
+  grid-template-columns: 44px 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.object-flow-step em {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent-soft);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.object-flow-step p {
+  grid-column: 2 / -1;
+}
+
+.state-transition {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(120px, 1.2fr) minmax(110px, 1fr);
+  align-items: center;
+  gap: 10px;
+  opacity: 0.58;
+}
+
+.state-transition.active {
+  border-color: var(--accent);
+  opacity: 1;
+  box-shadow: 0 0 18px rgba(0, 255, 102, 0.18);
+}
+
+.state-node {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border: 1px solid var(--class-border);
+  border-radius: 8px;
+  color: var(--accent-soft);
+  font-weight: 800;
+  text-align: center;
+}
+
+.state-edge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  color: var(--warning);
+  text-align: center;
+}
+
+.state-edge::before {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--relationship);
+  content: "";
+}
+
+.state-edge span {
+  position: relative;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  font-size: 12px;
+}
+
+.state-transition p {
+  grid-column: 1 / -1;
+}
+
+.test-case-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--accent-soft);
+  font-size: 13px;
+}
+
+.line-active {
+  display: inline-block;
+  width: 100%;
+  background: rgba(0, 255, 102, 0.1);
+}
+
 .vertical .visual-zone {
   padding: 12px;
 }
@@ -520,6 +688,30 @@
 
 .vertical .sequence-canvas svg {
   transform: scale(0.9);
+}
+
+.vertical .contract-grid,
+.vertical .method-contracts,
+.vertical .test-case-grid {
+  grid-template-columns: 1fr;
+}
+
+.vertical .object-flow-step {
+  grid-template-columns: 34px 1fr;
+}
+
+.vertical .object-flow-step em,
+.vertical .object-flow-step strong:last-of-type,
+.vertical .object-flow-step p {
+  grid-column: 2 / -1;
+}
+
+.vertical .state-transition {
+  grid-template-columns: 1fr;
+}
+
+.vertical .state-transition p {
+  grid-column: auto;
 }
 
 .vertical .explanation-panel h2 {

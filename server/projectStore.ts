@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { getTotalDuration } from "../src/engine/playbackEngine";
 import type { ExportRequest, StoredProject } from "../src/export/exportTypes";
 
 const root = process.cwd();
@@ -15,7 +16,12 @@ export async function saveProject(exportId: string, request: ExportRequest) {
   const project: StoredProject = {
     exportId,
     createdAt: new Date().toISOString(),
-    ...request
+    ...request,
+    scriptMetadata: {
+      sceneCount: request.scenes.length,
+      totalDurationMs: getTotalDuration(request.scenes),
+      hasEditedNarration: request.scenes.some((scene) => Boolean(scene.narration))
+    }
   };
   await writeFile(path.join(projectsDir, `${exportId}.json`), JSON.stringify(project, null, 2), "utf8");
   return project;

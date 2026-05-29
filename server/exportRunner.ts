@@ -3,6 +3,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { getTotalDuration } from "../src/engine/playbackEngine";
 import type { ExportStatus } from "../src/export/exportTypes";
+import { generateElevenLabsCleanScript, generateVoiceoverScript } from "../src/export/voiceoverScript";
 import type { LldVideoConfig } from "../src/topics/topicTypes";
 import { renderFramesToMp4 } from "./ffmpeg";
 import { loadProject } from "./projectStore";
@@ -49,7 +50,7 @@ export async function runExport(exportId: string, updateStatus: StatusUpdater) {
 
     updateStatus({ progress: 84, message: "Rendering MP4 with FFmpeg..." });
     await renderFramesToMp4(path.join(framesDir, "frame-%06d.png"), path.join(exportDir, "output.mp4"));
-    await writeMetadata(exportId, project.config, exportDir);
+    await writeExportTextFiles(exportId, project.config, project.scenes, exportDir, project.voiceoverScript, project.cleanVoiceoverScript);
     await rm(framesDir, { recursive: true, force: true });
 
     updateStatus({
@@ -68,9 +69,17 @@ export async function runExport(exportId: string, updateStatus: StatusUpdater) {
   }
 }
 
-async function writeMetadata(exportId: string, config: LldVideoConfig, exportDir: string) {
+export async function writeExportTextFiles(
+  exportId: string,
+  config: LldVideoConfig,
+  scenes: Awaited<ReturnType<typeof loadProject>>["scenes"],
+  exportDir: string,
+  voiceoverScript?: string,
+  cleanVoiceoverScript?: string
+) {
   const title = `${config.title} | LLD Explained Visually`;
-  const description = `Learn how to design a Parking Lot system using low-level design and object-oriented principles.
+  const topicLabel = config.title.replace(/^Design\s+/i, "");
+  const description = `Learn how to design ${topicLabel} using low-level design and object-oriented principles.
 
 Covered:
 - Functional requirements
@@ -78,21 +87,38 @@ Covered:
 - Class diagram
 - Relationships
 - Design patterns
-- Park vehicle flow
-- Exit vehicle flow
+- Object collaboration flow
+- Sequence flow
+- State transitions
+- Edge cases
+- Unit tests
 - Java code structure
 - Dry run example
 - Interview notes
 
-#LLD #LowLevelDesign #ParkingLot #Java #OOP #CodingInterview #SystemDesign
+#LLD #LowLevelDesign #${topicLabel.replace(/[^A-Za-z0-9]/g, "")} #Java #OOP #CodingInterview #SystemDesign
 `;
-  const tags = "LLD, Low Level Design, Parking Lot Design, Java, OOP, Object Oriented Design, Coding Interview, Machine Coding, System Design";
+  const tags = `LLD, Low Level Design, ${topicLabel}, Java, OOP, Object Oriented Design, Coding Interview, Machine Coding, System Design`;
+  const fullScript = voiceoverScript || generateVoiceoverScript(scenes);
+  const cleanScript = cleanVoiceoverScript || generateElevenLabsCleanScript(fullScript);
   await writeFile(path.join(exportDir, "title.txt"), title, "utf8");
   await writeFile(path.join(exportDir, "description.txt"), description, "utf8");
   await writeFile(path.join(exportDir, "tags.txt"), tags, "utf8");
+  await writeFile(path.join(exportDir, "voiceover-script.txt"), fullScript, "utf8");
+  await writeFile(path.join(exportDir, "elevenlabs-script.txt"), cleanScript, "utf8");
   await writeFile(
     path.join(exportDir, "metadata.json"),
-    JSON.stringify({ exportId, title, description, tags, createdAt: new Date().toISOString() }, null, 2),
+    JSON.stringify({
+      exportId,
+      title,
+      description,
+      tags,
+      topic: config.topic,
+      sceneCount: scenes.length,
+      totalDurationMs: getTotalDuration(scenes),
+      hasVoiceoverScript: true,
+      createdAt: new Date().toISOString()
+    }, null, 2),
     "utf8"
   );
 }

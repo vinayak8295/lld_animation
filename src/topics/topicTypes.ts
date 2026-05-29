@@ -18,6 +18,7 @@ export type LldVideoConfig = {
     | "car-rental-system"
     | "hotel-management-system";
   title: string;
+  difficulty?: "easy" | "medium" | "hard";
   language: "java" | "cpp" | "typescript" | "python";
   settings: {
     orientation: "vertical" | "desktop";
@@ -29,14 +30,24 @@ export type LldVideoConfig = {
   };
   problem: {
     requirements: string[];
+    constraints?: string[];
     entities: LldEntity[];
+    interfaces?: LldInterfaceDesign[];
+    publicMethods?: LldPublicMethod[];
     relationships: LldRelationship[];
     flows: LldFlow[];
     patterns?: LldDesignPattern[];
     codeFiles?: LldCodeFile[];
     dryRuns?: LldDryRun[];
+    dataStructures?: string[];
+    stateTransitions?: LldStateTransition[];
+    edgeCases?: string[];
+    errorHandling?: string[];
+    concurrencyConcerns?: string[];
+    testCases?: LldTestCase[];
     tradeoffs?: string[];
     mistakesToAvoid?: string[];
+    pitfalls?: string[];
   };
 };
 
@@ -80,6 +91,22 @@ export type LldFlowStep = {
   explanation: string;
 };
 
+export type LldInterfaceDesign = {
+  name: string;
+  responsibility: string;
+  methods: string[];
+  implementedBy?: string[];
+};
+
+export type LldPublicMethod = {
+  owner: string;
+  signature: string;
+  purpose: string;
+  inputs?: string[];
+  output?: string;
+  errors?: string[];
+};
+
 export type LldDesignPattern = {
   name: string;
   usedIn: string;
@@ -95,4 +122,35 @@ export type LldCodeFile = {
 export type LldDryRun = {
   title: string;
   steps: string[];
+};
+
+export type LldStateTransition = {
+  from: string;
+  event: string;
+  to: string;
+  explanation: string;
+};
+
+export type LldTestCase = {
+  title: string;
+  scenario: string;
+  expected: string;
+};
+
+export type LldDepthProfile = {
+  publicMethods: string[];
+  classResponsibilities: string[];
+  interfaces: string[];
+  relationships: string[];
+  designPatterns: string[];
+  dataStructures: string[];
+  objectLifecycle: string[];
+  stateTransitions: string[];
+  validationRules: string[];
+  errorHandling: string[];
+  concurrencyConcerns: string[];
+  extensibilityPoints: string[];
+  testCases: string[];
+  tradeoffs: string[];
+  interviewPitfalls: string[];
 };

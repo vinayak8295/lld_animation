@@ -91,6 +91,28 @@
   line-height: 1.5;
 }
 
+.voiceover-panel textarea {
+  width: 100%;
+  min-height: 280px;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  outline: 0;
+  resize: vertical;
+  background: #050805;
+  color: var(--text-main);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.voiceover-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+}
+
 .validation-list {
   display: grid;
   gap: 6px;
@@ -151,6 +173,12 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 13px;
+}
+
+.export-status a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .export-status progress {

@@ -3,6 +3,8 @@ import type {
   LldDryRun,
   LldEntity,
   LldFlow,
+  LldInterfaceDesign,
+  LldPublicMethod,
   LldRelationship
 } from "../topics/topicTypes";
 
@@ -14,6 +16,12 @@ export type LldScene =
   | LldRelationshipScene
   | LldPatternScene
   | LldSequenceScene
+  | LldInterfaceScene
+  | LldMethodScene
+  | LldObjectFlowScene
+  | LldStateMachineScene
+  | LldListScene
+  | LldTestCaseScene
   | LldCodeScene
   | LldDryRunScene
   | LldSummaryScene
@@ -76,6 +84,45 @@ export type LldSequenceScene = BaseLldScene & {
   type: "sequence";
   flow: LldFlow;
   activeStepIndex: number;
+};
+
+export type LldInterfaceScene = BaseLldScene & {
+  type: "interfaceDesign";
+  interfaces: LldInterfaceDesign[];
+};
+
+export type LldMethodScene = BaseLldScene & {
+  type: "methodContracts";
+  methods: LldPublicMethod[];
+};
+
+export type LldObjectFlowScene = BaseLldScene & {
+  type: "objectFlow";
+  flow: LldFlow;
+};
+
+export type LldStateMachineScene = BaseLldScene & {
+  type: "stateMachine";
+  transitions: Array<{
+    from: string;
+    event: string;
+    to: string;
+    explanation: string;
+  }>;
+};
+
+export type LldListScene = BaseLldScene & {
+  type: "dataStructures" | "edgeCases" | "errorHandling" | "concurrency" | "tradeOffs" | "pitfalls";
+  items: string[];
+};
+
+export type LldTestCaseScene = BaseLldScene & {
+  type: "testCases";
+  testCases: Array<{
+    title: string;
+    scenario: string;
+    expected: string;
+  }>;
 };
 
 export type LldCodeScene = BaseLldScene & {

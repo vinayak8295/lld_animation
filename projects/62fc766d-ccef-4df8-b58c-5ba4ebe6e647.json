@@ -1,0 +1,1492 @@
+{
+  "exportId": "62fc766d-ccef-4df8-b58c-5ba4ebe6e647",
+  "createdAt": "2026-05-29T19:36:21.404Z",
+  "config": {
+    "template": "matrix-lld",
+    "topic": "parking-lot",
+    "title": "Design a Parking Lot",
+    "language": "java",
+    "settings": {
+      "orientation": "desktop",
+      "showRightTextPanel": true,
+      "showCode": true,
+      "showClassDiagram": true,
+      "showSequenceDiagram": true,
+      "speed": "normal"
+    },
+    "problem": {
+      "requirements": [
+        "Support multiple parking floors",
+        "Support different vehicle types",
+        "Assign nearest available parking spot",
+        "Generate parking ticket",
+        "Calculate parking fee on exit"
+      ],
+      "entities": [
+        {
+          "id": "vehicle",
+          "name": "Vehicle",
+          "type": "abstract-class",
+          "responsibility": "Base class for all vehicles",
+          "fields": [
+            "vehicleNumber",
+            "vehicleType"
+          ],
+          "methods": [
+            "getVehicleType()",
+            "getVehicleNumber()"
+          ]
+        },
+        {
+          "id": "car",
+          "name": "Car",
+          "type": "class",
+          "extends": "Vehicle",
+          "responsibility": "Represents a car vehicle"
+        },
+        {
+          "id": "parkingFloor",
+          "name": "ParkingFloor",
+          "type": "class",
+          "responsibility": "Manages parking spots on one floor",
+          "fields": [
+            "floorId",
+            "spots"
+          ],
+          "methods": [
+            "findAvailableSpot(vehicle)"
+          ]
+        },
+        {
+          "id": "parkingSpot",
+          "name": "ParkingSpot",
+          "type": "class",
+          "responsibility": "Represents one parking slot",
+          "fields": [
+            "spotId",
+            "supportedType",
+            "parkedVehicle"
+          ],
+          "methods": [
+            "canFit(vehicle)",
+            "parkVehicle(vehicle)",
+            "removeVehicle()"
+          ]
+        },
+        {
+          "id": "parkingTicket",
+          "name": "ParkingTicket",
+          "type": "class",
+          "responsibility": "Stores parking session details",
+          "fields": [
+            "ticketId",
+            "vehicle",
+            "spot",
+            "entryTime"
+          ],
+          "methods": [
+            "getSpot()",
+            "getEntryTime()"
+          ]
+        },
+        {
+          "id": "parkingLot",
+          "name": "ParkingLot",
+          "type": "singleton",
+          "responsibility": "Main coordinator for parking and exit operations",
+          "fields": [
+            "floors"
+          ],
+          "methods": [
+            "getInstance()",
+            "parkVehicle(vehicle)",
+            "unparkVehicle(ticket)"
+          ]
+        },
+        {
+          "id": "feeStrategy",
+          "name": "FeeCalculationStrategy",
+          "type": "strategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "Car",
+          "to": "Vehicle",
+          "type": "extends"
+        },
+        {
+          "from": "ParkingLot",
+          "to": "ParkingFloor",
+          "type": "has-many"
+        },
+        {
+          "from": "ParkingFloor",
+          "to": "ParkingSpot",
+          "type": "has-many"
+        },
+        {
+          "from": "ParkingTicket",
+          "to": "Vehicle",
+          "type": "has-one"
+        },
+        {
+          "from": "ParkingTicket",
+          "to": "ParkingSpot",
+          "type": "has-one"
+        },
+        {
+          "from": "ParkingLot",
+          "to": "FeeCalculationStrategy",
+          "type": "uses"
+        }
+      ],
+      "flows": [
+        {
+          "id": "park-vehicle",
+          "title": "Park Vehicle Flow",
+          "steps": [
+            {
+              "actor": "Driver",
+              "target": "ParkingLot",
+              "method": "parkVehicle(car)",
+              "explanation": "Driver requests parking for a car."
+            },
+            {
+              "actor": "ParkingLot",
+              "target": "ParkingFloor",
+              "method": "findAvailableSpot(vehicle)",
+              "explanation": "Parking lot asks floors to find a compatible available spot."
+            },
+            {
+              "actor": "ParkingFloor",
+              "target": "ParkingSpot",
+              "method": "canFit(vehicle)",
+              "explanation": "Parking floor checks whether the spot supports this vehicle type and is free."
+            },
+            {
+              "actor": "ParkingSpot",
+              "target": "ParkingSpot",
+              "method": "parkVehicle(vehicle)",
+              "explanation": "The selected spot stores the vehicle and becomes occupied."
+            },
+            {
+              "actor": "ParkingLot",
+              "target": "ParkingTicket",
+              "method": "createTicket(vehicle, spot)",
+              "explanation": "Parking lot generates a ticket with vehicle, spot and entry time."
+            }
+          ]
+        },
+        {
+          "id": "exit-vehicle",
+          "title": "Exit Vehicle Flow",
+          "steps": [
+            {
+              "actor": "Driver",
+              "target": "ParkingLot",
+              "method": "unparkVehicle(ticket)",
+              "explanation": "Driver exits using the parking ticket."
+            },
+            {
+              "actor": "ParkingLot",
+              "target": "FeeCalculationStrategy",
+              "method": "calculateFee(ticket)",
+              "explanation": "Parking lot calculates the fee using the selected fee strategy."
+            },
+            {
+              "actor": "ParkingLot",
+              "target": "ParkingSpot",
+              "method": "removeVehicle()",
+              "explanation": "The occupied spot is freed after payment."
+            }
+          ]
+        }
+      ],
+      "patterns": [
+        {
+          "name": "Singleton",
+          "usedIn": "ParkingLot",
+          "reason": "Only one central parking lot manager should coordinate all parking operations."
+        },
+        {
+          "name": "Strategy",
+          "usedIn": "FeeCalculationStrategy",
+          "reason": "Pricing rules can change without modifying ParkingLot."
+        }
+      ],
+      "codeFiles": [
+        {
+          "filename": "Vehicle.java",
+          "language": "java",
+          "code": "enum VehicleType {\n    BIKE, CAR, TRUCK\n}\n\nabstract class Vehicle {\n    private final String vehicleNumber;\n    private final VehicleType vehicleType;\n\n    protected Vehicle(String vehicleNumber, VehicleType vehicleType) {\n        this.vehicleNumber = vehicleNumber;\n        this.vehicleType = vehicleType;\n    }\n\n    public VehicleType getVehicleType() {\n        return vehicleType;\n    }\n\n    public String getVehicleNumber() {\n        return vehicleNumber;\n    }\n}\n\nclass Car extends Vehicle {\n    public Car(String vehicleNumber) {\n        super(vehicleNumber, VehicleType.CAR);\n    }\n}"
+        },
+        {
+          "filename": "ParkingSpot.java",
+          "language": "java",
+          "code": "class ParkingSpot {\n    private final String spotId;\n    private final VehicleType supportedType;\n    private Vehicle parkedVehicle;\n\n    public ParkingSpot(String spotId, VehicleType supportedType) {\n        this.spotId = spotId;\n        this.supportedType = supportedType;\n    }\n\n    public boolean canFit(Vehicle vehicle) {\n        return parkedVehicle == null &&\n               supportedType == vehicle.getVehicleType();\n    }\n\n    public void parkVehicle(Vehicle vehicle) {\n        if (!canFit(vehicle)) {\n            throw new IllegalStateException(\"Spot not available\");\n        }\n        this.parkedVehicle = vehicle;\n    }\n\n    public void removeVehicle() {\n        this.parkedVehicle = null;\n    }\n}"
+        },
+        {
+          "filename": "ParkingTicket.java",
+          "language": "java",
+          "code": "class ParkingTicket {\n    private final String ticketId;\n    private final Vehicle vehicle;\n    private final ParkingSpot spot;\n    private final long entryTime;\n\n    public ParkingTicket(String ticketId, Vehicle vehicle, ParkingSpot spot) {\n        this.ticketId = ticketId;\n        this.vehicle = vehicle;\n        this.spot = spot;\n        this.entryTime = System.currentTimeMillis();\n    }\n\n    public ParkingSpot getSpot() {\n        return spot;\n    }\n\n    public long getEntryTime() {\n        return entryTime;\n    }\n}"
+        },
+        {
+          "filename": "ParkingLot.java",
+          "language": "java",
+          "code": "class ParkingLot {\n    private static ParkingLot instance;\n    private final List<ParkingFloor> floors = new ArrayList<>();\n\n    private ParkingLot() {}\n\n    public static synchronized ParkingLot getInstance() {\n        if (instance == null) {\n            instance = new ParkingLot();\n        }\n        return instance;\n    }\n\n    public ParkingTicket parkVehicle(Vehicle vehicle) {\n        for (ParkingFloor floor : floors) {\n            ParkingSpot spot = floor.findAvailableSpot(vehicle);\n            if (spot != null) {\n                spot.parkVehicle(vehicle);\n                return new ParkingTicket(UUID.randomUUID().toString(), vehicle, spot);\n            }\n        }\n\n        throw new IllegalStateException(\"No spot available\");\n    }\n\n    public void unparkVehicle(ParkingTicket ticket) {\n        ticket.getSpot().removeVehicle();\n    }\n}"
+        }
+      ],
+      "dryRuns": [
+        {
+          "title": "Example Dry Run",
+          "steps": [
+            "Car KA-01 enters the parking lot.",
+            "ParkingLot searches floors for an available CAR spot.",
+            "ParkingSpot C1 is available.",
+            "Car is parked at C1.",
+            "ParkingTicket T1 is generated.",
+            "On exit, fee is calculated and C1 becomes free."
+          ]
+        }
+      ],
+      "tradeoffs": [
+        "Simple manager class vs multiple services",
+        "Nearest spot allocation vs first available spot",
+        "Fixed fee calculation vs strategy-based fee calculation",
+        "In-memory design vs persistent storage"
+      ],
+      "mistakesToAvoid": [
+        "Putting all logic inside one ParkingLot class",
+        "Ignoring vehicle type compatibility",
+        "Not freeing the spot on exit",
+        "Skipping sequence flow explanation"
+      ],
+      "constraints": [
+        "Keep the core workflow deterministic and testable.",
+        "Keep state changes explicit and easy to validate.",
+        "Design should support new rules without rewriting existing classes."
+      ],
+      "interfaces": [
+        {
+          "name": "FeeCalculationStrategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ],
+          "implementedBy": []
+        }
+      ],
+      "publicMethods": [
+        {
+          "owner": "Vehicle",
+          "signature": "getVehicleType()",
+          "purpose": "Base class for all vehicles",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "Vehicle",
+          "signature": "getVehicleNumber()",
+          "purpose": "Base class for all vehicles",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingFloor",
+          "signature": "findAvailableSpot(vehicle)",
+          "purpose": "Manages parking spots on one floor",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "canFit(vehicle)",
+          "purpose": "Represents one parking slot",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "parkVehicle(vehicle)",
+          "purpose": "Represents one parking slot",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "removeVehicle()",
+          "purpose": "Represents one parking slot",
+          "inputs": [],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingTicket",
+          "signature": "getSpot()",
+          "purpose": "Stores parking session details",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingTicket",
+          "signature": "getEntryTime()",
+          "purpose": "Stores parking session details",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        }
+      ],
+      "dataStructures": [
+        "Map floorId to ParkingFloor.",
+        "Priority queue or ordered list for nearest available spots.",
+        "Map ticketId to active ParkingTicket."
+      ],
+      "stateTransitions": [
+        {
+          "from": "SpotAvailable",
+          "event": "entry.",
+          "to": "SpotReserved",
+          "explanation": "SpotAvailable -> SpotReserved on entry."
+        },
+        {
+          "from": "SpotReserved",
+          "event": "vehicle parks.",
+          "to": "SpotOccupied",
+          "explanation": "SpotReserved -> SpotOccupied after vehicle parks."
+        },
+        {
+          "from": "SpotOccupied",
+          "event": "paid exit.",
+          "to": "SpotAvailable",
+          "explanation": "SpotOccupied -> SpotAvailable after paid exit."
+        }
+      ],
+      "edgeCases": [
+        "Reject unsupported input before mutating state.",
+        "Validate availability before assigning resources.",
+        "Validate state before allowing an operation."
+      ],
+      "errorHandling": [
+        "Return domain-specific errors for invalid state.",
+        "Release temporary resources on failure.",
+        "Keep failure messages actionable for callers."
+      ],
+      "concurrencyConcerns": [
+        "Lock spot assignment per floor.",
+        "Prevent two gates from reserving the same spot.",
+        "Make ticket creation idempotent for retries."
+      ],
+      "testCases": [
+        {
+          "title": "Happy path creates the expected state changes.",
+          "scenario": "Happy path creates the expected state changes.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        },
+        {
+          "title": "Invalid input is rejected without mutation.",
+          "scenario": "Invalid input is rejected without mutation.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        },
+        {
+          "title": "Concurrent requests do not allocate the same resource twice.",
+          "scenario": "Concurrent requests do not allocate the same resource twice.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        }
+      ],
+      "pitfalls": [
+        "Putting all logic inside one ParkingLot class",
+        "Ignoring vehicle type compatibility",
+        "Not freeing the spot on exit",
+        "Skipping sequence flow explanation"
+      ]
+    },
+    "difficulty": "medium"
+  },
+  "scenes": [
+    {
+      "id": "title",
+      "type": "title",
+      "title": "Title",
+      "durationMs": 3000,
+      "titleText": "Design a Parking Lot",
+      "subtitle": "medium LLD Interview Design",
+      "rightPanel": {
+        "heading": "Interview Goal",
+        "body": "Design clean classes, interfaces, object flows, edge cases, tests, and trade-offs for Design a Parking Lot."
+      },
+      "narration": "Interview Goal Design clean classes, interfaces, object flows, edge cases, tests, and trade-offs for Design a Parking Lot."
+    },
+    {
+      "id": "problem-statement",
+      "type": "text",
+      "title": "Problem Statement",
+      "durationMs": 5000,
+      "cards": [
+        "Model Design a Parking Lot with clear domain entities.",
+        "Support support multiple parking floors and support different vehicle types.",
+        "Keep the design extensible for new rules, states, and workflows."
+      ],
+      "rightPanel": {
+        "heading": "Problem Framing",
+        "bullets": [
+          "Model Design a Parking Lot with clear domain entities.",
+          "Support support multiple parking floors and support different vehicle types.",
+          "Keep the design extensible for new rules, states, and workflows."
+        ],
+        "interviewNote": "State scope, assumptions, and key workflows before drawing classes."
+      },
+      "narration": "Problem Framing Model Design a Parking Lot with clear domain entities. Support support multiple parking floors and support different vehicle types. Keep the design extensible for new rules, states, and workflows. State scope, assumptions, and key workflows before drawing classes."
+    },
+    {
+      "id": "requirements",
+      "type": "text",
+      "title": "Functional Requirements",
+      "durationMs": 5000,
+      "cards": [
+        "Support multiple parking floors",
+        "Support different vehicle types",
+        "Assign nearest available parking spot",
+        "Generate parking ticket",
+        "Calculate parking fee on exit"
+      ],
+      "rightPanel": {
+        "heading": "Functional Requirements",
+        "bullets": [
+          "Support multiple parking floors",
+          "Support different vehicle types",
+          "Assign nearest available parking spot",
+          "Generate parking ticket",
+          "Calculate parking fee on exit"
+        ],
+        "interviewNote": "Requirements become methods, state transitions, and tests."
+      },
+      "narration": "Functional Requirements Support multiple parking floors Support different vehicle types Assign nearest available parking spot Generate parking ticket Calculate parking fee on exit Requirements become methods, state transitions, and tests."
+    },
+    {
+      "id": "constraints",
+      "type": "text",
+      "title": "Constraints and Assumptions",
+      "durationMs": 5000,
+      "cards": [
+        "Keep the core workflow deterministic and testable.",
+        "Keep state changes explicit and easy to validate.",
+        "Design should support new rules without rewriting existing classes."
+      ],
+      "rightPanel": {
+        "heading": "Constraints",
+        "bullets": [
+          "Keep the core workflow deterministic and testable.",
+          "Keep state changes explicit and easy to validate.",
+          "Design should support new rules without rewriting existing classes."
+        ],
+        "interviewNote": "Constraints decide whether the design needs locks, strategies, or repositories."
+      },
+      "narration": "Constraints Keep the core workflow deterministic and testable. Keep state changes explicit and easy to validate. Design should support new rules without rewriting existing classes. Constraints decide whether the design needs locks, strategies, or repositories."
+    },
+    {
+      "id": "core-objects",
+      "type": "entities",
+      "title": "Core Objects and Classes",
+      "durationMs": 5500,
+      "entities": [
+        {
+          "id": "vehicle",
+          "name": "Vehicle",
+          "type": "abstract-class",
+          "responsibility": "Base class for all vehicles",
+          "fields": [
+            "vehicleNumber",
+            "vehicleType"
+          ],
+          "methods": [
+            "getVehicleType()",
+            "getVehicleNumber()"
+          ]
+        },
+        {
+          "id": "car",
+          "name": "Car",
+          "type": "class",
+          "extends": "Vehicle",
+          "responsibility": "Represents a car vehicle"
+        },
+        {
+          "id": "parkingFloor",
+          "name": "ParkingFloor",
+          "type": "class",
+          "responsibility": "Manages parking spots on one floor",
+          "fields": [
+            "floorId",
+            "spots"
+          ],
+          "methods": [
+            "findAvailableSpot(vehicle)"
+          ]
+        },
+        {
+          "id": "parkingSpot",
+          "name": "ParkingSpot",
+          "type": "class",
+          "responsibility": "Represents one parking slot",
+          "fields": [
+            "spotId",
+            "supportedType",
+            "parkedVehicle"
+          ],
+          "methods": [
+            "canFit(vehicle)",
+            "parkVehicle(vehicle)",
+            "removeVehicle()"
+          ]
+        },
+        {
+          "id": "parkingTicket",
+          "name": "ParkingTicket",
+          "type": "class",
+          "responsibility": "Stores parking session details",
+          "fields": [
+            "ticketId",
+            "vehicle",
+            "spot",
+            "entryTime"
+          ],
+          "methods": [
+            "getSpot()",
+            "getEntryTime()"
+          ]
+        },
+        {
+          "id": "parkingLot",
+          "name": "ParkingLot",
+          "type": "singleton",
+          "responsibility": "Main coordinator for parking and exit operations",
+          "fields": [
+            "floors"
+          ],
+          "methods": [
+            "getInstance()",
+            "parkVehicle(vehicle)",
+            "unparkVehicle(ticket)"
+          ]
+        },
+        {
+          "id": "feeStrategy",
+          "name": "FeeCalculationStrategy",
+          "type": "strategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ]
+        }
+      ],
+      "highlightedEntityIds": [
+        "vehicle",
+        "car",
+        "parkingFloor",
+        "parkingSpot",
+        "parkingTicket",
+        "parkingLot"
+      ],
+      "rightPanel": {
+        "heading": "Core Objects",
+        "bullets": [
+          "Vehicle: Base class for all vehicles",
+          "Car: Represents a car vehicle",
+          "ParkingFloor: Manages parking spots on one floor",
+          "ParkingSpot: Represents one parking slot",
+          "ParkingTicket: Stores parking session details",
+          "ParkingLot: Main coordinator for parking and exit operations"
+        ],
+        "interviewNote": "Good LLD separates object responsibilities before adding methods."
+      },
+      "narration": "Core Objects Vehicle: Base class for all vehicles Car: Represents a car vehicle ParkingFloor: Manages parking spots on one floor ParkingSpot: Represents one parking slot ParkingTicket: Stores parking session details ParkingLot: Main coordinator for parking and exit operations Good LLD separates object responsibilities before adding methods."
+    },
+    {
+      "id": "class-diagram",
+      "type": "classDiagram",
+      "title": "Class Diagram",
+      "durationMs": 7000,
+      "entities": [
+        {
+          "id": "vehicle",
+          "name": "Vehicle",
+          "type": "abstract-class",
+          "responsibility": "Base class for all vehicles",
+          "fields": [
+            "vehicleNumber",
+            "vehicleType"
+          ],
+          "methods": [
+            "getVehicleType()",
+            "getVehicleNumber()"
+          ]
+        },
+        {
+          "id": "car",
+          "name": "Car",
+          "type": "class",
+          "extends": "Vehicle",
+          "responsibility": "Represents a car vehicle"
+        },
+        {
+          "id": "parkingFloor",
+          "name": "ParkingFloor",
+          "type": "class",
+          "responsibility": "Manages parking spots on one floor",
+          "fields": [
+            "floorId",
+            "spots"
+          ],
+          "methods": [
+            "findAvailableSpot(vehicle)"
+          ]
+        },
+        {
+          "id": "parkingSpot",
+          "name": "ParkingSpot",
+          "type": "class",
+          "responsibility": "Represents one parking slot",
+          "fields": [
+            "spotId",
+            "supportedType",
+            "parkedVehicle"
+          ],
+          "methods": [
+            "canFit(vehicle)",
+            "parkVehicle(vehicle)",
+            "removeVehicle()"
+          ]
+        },
+        {
+          "id": "parkingTicket",
+          "name": "ParkingTicket",
+          "type": "class",
+          "responsibility": "Stores parking session details",
+          "fields": [
+            "ticketId",
+            "vehicle",
+            "spot",
+            "entryTime"
+          ],
+          "methods": [
+            "getSpot()",
+            "getEntryTime()"
+          ]
+        },
+        {
+          "id": "parkingLot",
+          "name": "ParkingLot",
+          "type": "singleton",
+          "responsibility": "Main coordinator for parking and exit operations",
+          "fields": [
+            "floors"
+          ],
+          "methods": [
+            "getInstance()",
+            "parkVehicle(vehicle)",
+            "unparkVehicle(ticket)"
+          ]
+        },
+        {
+          "id": "feeStrategy",
+          "name": "FeeCalculationStrategy",
+          "type": "strategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "from": "Car",
+          "to": "Vehicle",
+          "type": "extends"
+        },
+        {
+          "from": "ParkingLot",
+          "to": "ParkingFloor",
+          "type": "has-many"
+        },
+        {
+          "from": "ParkingFloor",
+          "to": "ParkingSpot",
+          "type": "has-many"
+        },
+        {
+          "from": "ParkingTicket",
+          "to": "Vehicle",
+          "type": "has-one"
+        },
+        {
+          "from": "ParkingTicket",
+          "to": "ParkingSpot",
+          "type": "has-one"
+        },
+        {
+          "from": "ParkingLot",
+          "to": "FeeCalculationStrategy",
+          "type": "uses"
+        }
+      ],
+      "highlightedEntityIds": [],
+      "highlightedRelationshipIndexes": [],
+      "rightPanel": {
+        "heading": "Class Diagram",
+        "bullets": [
+          "ParkingLot coordinates the main workflow.",
+          "Vehicle anchors the model.",
+          "Composition owns object lifetime; dependencies express collaboration.",
+          "Long explanations stay in the panel so the diagram remains clean."
+        ],
+        "interviewNote": "Use the diagram to prove ownership and collaboration, not to dump text."
+      },
+      "narration": "Class Diagram ParkingLot coordinates the main workflow. Vehicle anchors the model. Composition owns object lifetime; dependencies express collaboration. Long explanations stay in the panel so the diagram remains clean. Use the diagram to prove ownership and collaboration, not to dump text."
+    },
+    {
+      "id": "interface-design",
+      "type": "interfaceDesign",
+      "title": "Interface Design",
+      "durationMs": 5500,
+      "interfaces": [
+        {
+          "name": "FeeCalculationStrategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ],
+          "implementedBy": []
+        }
+      ],
+      "rightPanel": {
+        "heading": "Interface Contracts",
+        "bullets": [
+          "FeeCalculationStrategy: Calculates parking fee using pluggable pricing rules"
+        ],
+        "interviewNote": "Use interfaces only where behavior genuinely varies."
+      },
+      "narration": "Interface Contracts FeeCalculationStrategy: Calculates parking fee using pluggable pricing rules Use interfaces only where behavior genuinely varies."
+    },
+    {
+      "id": "method-contracts",
+      "type": "methodContracts",
+      "title": "Public Method Contracts",
+      "durationMs": 6200,
+      "methods": [
+        {
+          "owner": "Vehicle",
+          "signature": "getVehicleType()",
+          "purpose": "Base class for all vehicles",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "Vehicle",
+          "signature": "getVehicleNumber()",
+          "purpose": "Base class for all vehicles",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingFloor",
+          "signature": "findAvailableSpot(vehicle)",
+          "purpose": "Manages parking spots on one floor",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "canFit(vehicle)",
+          "purpose": "Represents one parking slot",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "parkVehicle(vehicle)",
+          "purpose": "Represents one parking slot",
+          "inputs": [
+            "vehicle"
+          ],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingSpot",
+          "signature": "removeVehicle()",
+          "purpose": "Represents one parking slot",
+          "inputs": [],
+          "output": "State change or command result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingTicket",
+          "signature": "getSpot()",
+          "purpose": "Stores parking session details",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        },
+        {
+          "owner": "ParkingTicket",
+          "signature": "getEntryTime()",
+          "purpose": "Stores parking session details",
+          "inputs": [],
+          "output": "Domain value or null result",
+          "errors": [
+            "Invalid state",
+            "Unsupported input"
+          ]
+        }
+      ],
+      "rightPanel": {
+        "heading": "Public Methods",
+        "bullets": [
+          "Vehicle.getVehicleType(): Base class for all vehicles",
+          "Vehicle.getVehicleNumber(): Base class for all vehicles",
+          "ParkingFloor.findAvailableSpot(vehicle): Manages parking spots on one floor",
+          "ParkingSpot.canFit(vehicle): Represents one parking slot",
+          "ParkingSpot.parkVehicle(vehicle): Represents one parking slot"
+        ],
+        "interviewNote": "Method contracts turn requirements into testable behavior."
+      },
+      "narration": "Public Methods Vehicle.getVehicleType(): Base class for all vehicles Vehicle.getVehicleNumber(): Base class for all vehicles ParkingFloor.findAvailableSpot(vehicle): Manages parking spots on one floor ParkingSpot.canFit(vehicle): Represents one parking slot ParkingSpot.parkVehicle(vehicle): Represents one parking slot Method contracts turn requirements into testable behavior."
+    },
+    {
+      "id": "object-collaboration",
+      "type": "objectFlow",
+      "title": "Object Collaboration Flow",
+      "durationMs": 6000,
+      "flow": {
+        "id": "park-vehicle",
+        "title": "Park Vehicle Flow",
+        "steps": [
+          {
+            "actor": "Driver",
+            "target": "ParkingLot",
+            "method": "parkVehicle(car)",
+            "explanation": "Driver requests parking for a car."
+          },
+          {
+            "actor": "ParkingLot",
+            "target": "ParkingFloor",
+            "method": "findAvailableSpot(vehicle)",
+            "explanation": "Parking lot asks floors to find a compatible available spot."
+          },
+          {
+            "actor": "ParkingFloor",
+            "target": "ParkingSpot",
+            "method": "canFit(vehicle)",
+            "explanation": "Parking floor checks whether the spot supports this vehicle type and is free."
+          },
+          {
+            "actor": "ParkingSpot",
+            "target": "ParkingSpot",
+            "method": "parkVehicle(vehicle)",
+            "explanation": "The selected spot stores the vehicle and becomes occupied."
+          },
+          {
+            "actor": "ParkingLot",
+            "target": "ParkingTicket",
+            "method": "createTicket(vehicle, spot)",
+            "explanation": "Parking lot generates a ticket with vehicle, spot and entry time."
+          }
+        ]
+      },
+      "rightPanel": {
+        "heading": "Park Vehicle Flow",
+        "bullets": [
+          "Driver calls ParkingLot.parkVehicle(car)",
+          "ParkingLot calls ParkingFloor.findAvailableSpot(vehicle)",
+          "ParkingFloor calls ParkingSpot.canFit(vehicle)",
+          "ParkingSpot calls ParkingSpot.parkVehicle(vehicle)",
+          "ParkingLot calls ParkingTicket.createTicket(vehicle, spot)"
+        ],
+        "interviewNote": "A collaboration flow proves that the class model is executable."
+      },
+      "narration": "Park Vehicle Flow Driver calls ParkingLot.parkVehicle(car) ParkingLot calls ParkingFloor.findAvailableSpot(vehicle) ParkingFloor calls ParkingSpot.canFit(vehicle) ParkingSpot calls ParkingSpot.parkVehicle(vehicle) ParkingLot calls ParkingTicket.createTicket(vehicle, spot) A collaboration flow proves that the class model is executable."
+    },
+    {
+      "id": "sequence-flow",
+      "type": "sequence",
+      "title": "Exit Vehicle Flow",
+      "durationMs": 6200,
+      "flow": {
+        "id": "exit-vehicle",
+        "title": "Exit Vehicle Flow",
+        "steps": [
+          {
+            "actor": "Driver",
+            "target": "ParkingLot",
+            "method": "unparkVehicle(ticket)",
+            "explanation": "Driver exits using the parking ticket."
+          },
+          {
+            "actor": "ParkingLot",
+            "target": "FeeCalculationStrategy",
+            "method": "calculateFee(ticket)",
+            "explanation": "Parking lot calculates the fee using the selected fee strategy."
+          },
+          {
+            "actor": "ParkingLot",
+            "target": "ParkingSpot",
+            "method": "removeVehicle()",
+            "explanation": "The occupied spot is freed after payment."
+          }
+        ]
+      },
+      "activeStepIndex": 0,
+      "rightPanel": {
+        "heading": "Exit Vehicle Flow",
+        "bullets": [
+          "Driver exits using the parking ticket.",
+          "Parking lot calculates the fee using the selected fee strategy.",
+          "The occupied spot is freed after payment."
+        ],
+        "interviewNote": "Sequence diagrams expose missing dependencies and invalid state changes."
+      },
+      "narration": "Exit Vehicle Flow Driver exits using the parking ticket. Parking lot calculates the fee using the selected fee strategy. The occupied spot is freed after payment. Sequence diagrams expose missing dependencies and invalid state changes."
+    },
+    {
+      "id": "state-machine",
+      "type": "stateMachine",
+      "title": "State Transitions",
+      "durationMs": 6000,
+      "transitions": [
+        {
+          "from": "SpotAvailable",
+          "event": "entry.",
+          "to": "SpotReserved",
+          "explanation": "SpotAvailable -> SpotReserved on entry."
+        },
+        {
+          "from": "SpotReserved",
+          "event": "vehicle parks.",
+          "to": "SpotOccupied",
+          "explanation": "SpotReserved -> SpotOccupied after vehicle parks."
+        },
+        {
+          "from": "SpotOccupied",
+          "event": "paid exit.",
+          "to": "SpotAvailable",
+          "explanation": "SpotOccupied -> SpotAvailable after paid exit."
+        }
+      ],
+      "rightPanel": {
+        "heading": "State Machine",
+        "bullets": [
+          "SpotAvailable -> SpotReserved: SpotAvailable -> SpotReserved on entry.",
+          "SpotReserved -> SpotOccupied: SpotReserved -> SpotOccupied after vehicle parks.",
+          "SpotOccupied -> SpotAvailable: SpotOccupied -> SpotAvailable after paid exit."
+        ],
+        "interviewNote": "Explicit states prevent invalid operations from slipping into code."
+      },
+      "narration": "State Machine SpotAvailable -> SpotReserved: SpotAvailable -> SpotReserved on entry. SpotReserved -> SpotOccupied: SpotReserved -> SpotOccupied after vehicle parks. SpotOccupied -> SpotAvailable: SpotOccupied -> SpotAvailable after paid exit. Explicit states prevent invalid operations from slipping into code."
+    },
+    {
+      "id": "design-pattern",
+      "type": "pattern",
+      "title": "Design Pattern Choice",
+      "durationMs": 5000,
+      "pattern": {
+        "name": "Singleton",
+        "usedIn": "ParkingLot",
+        "reason": "Only one central parking lot manager should coordinate all parking operations."
+      },
+      "entities": [
+        {
+          "id": "vehicle",
+          "name": "Vehicle",
+          "type": "abstract-class",
+          "responsibility": "Base class for all vehicles",
+          "fields": [
+            "vehicleNumber",
+            "vehicleType"
+          ],
+          "methods": [
+            "getVehicleType()",
+            "getVehicleNumber()"
+          ]
+        },
+        {
+          "id": "car",
+          "name": "Car",
+          "type": "class",
+          "extends": "Vehicle",
+          "responsibility": "Represents a car vehicle"
+        },
+        {
+          "id": "parkingFloor",
+          "name": "ParkingFloor",
+          "type": "class",
+          "responsibility": "Manages parking spots on one floor",
+          "fields": [
+            "floorId",
+            "spots"
+          ],
+          "methods": [
+            "findAvailableSpot(vehicle)"
+          ]
+        },
+        {
+          "id": "parkingSpot",
+          "name": "ParkingSpot",
+          "type": "class",
+          "responsibility": "Represents one parking slot",
+          "fields": [
+            "spotId",
+            "supportedType",
+            "parkedVehicle"
+          ],
+          "methods": [
+            "canFit(vehicle)",
+            "parkVehicle(vehicle)",
+            "removeVehicle()"
+          ]
+        },
+        {
+          "id": "parkingTicket",
+          "name": "ParkingTicket",
+          "type": "class",
+          "responsibility": "Stores parking session details",
+          "fields": [
+            "ticketId",
+            "vehicle",
+            "spot",
+            "entryTime"
+          ],
+          "methods": [
+            "getSpot()",
+            "getEntryTime()"
+          ]
+        },
+        {
+          "id": "parkingLot",
+          "name": "ParkingLot",
+          "type": "singleton",
+          "responsibility": "Main coordinator for parking and exit operations",
+          "fields": [
+            "floors"
+          ],
+          "methods": [
+            "getInstance()",
+            "parkVehicle(vehicle)",
+            "unparkVehicle(ticket)"
+          ]
+        },
+        {
+          "id": "feeStrategy",
+          "name": "FeeCalculationStrategy",
+          "type": "strategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ]
+        }
+      ],
+      "highlightedEntityIds": [
+        "parkingLot"
+      ],
+      "rightPanel": {
+        "heading": "Singleton",
+        "bullets": [
+          "Used in ParkingLot",
+          "Only one central parking lot manager should coordinate all parking operations."
+        ],
+        "interviewNote": "Name a pattern only when it solves a concrete design pressure."
+      },
+      "narration": "Singleton Used in ParkingLot Only one central parking lot manager should coordinate all parking operations. Name a pattern only when it solves a concrete design pressure."
+    },
+    {
+      "id": "data-structures",
+      "type": "dataStructures",
+      "title": "Data Structures Used",
+      "durationMs": 5000,
+      "items": [
+        "Map floorId to ParkingFloor.",
+        "Priority queue or ordered list for nearest available spots.",
+        "Map ticketId to active ParkingTicket."
+      ],
+      "rightPanel": {
+        "heading": "Data Structures",
+        "bullets": [
+          "Map floorId to ParkingFloor.",
+          "Priority queue or ordered list for nearest available spots.",
+          "Map ticketId to active ParkingTicket."
+        ],
+        "interviewNote": "Data structures should justify time complexity and state ownership."
+      },
+      "narration": "Data Structures Map floorId to ParkingFloor. Priority queue or ordered list for nearest available spots. Map ticketId to active ParkingTicket. Data structures should justify time complexity and state ownership."
+    },
+    {
+      "id": "edge-cases",
+      "type": "edgeCases",
+      "title": "Edge Cases",
+      "durationMs": 6000,
+      "items": [
+        "Reject unsupported input before mutating state.",
+        "Validate availability before assigning resources.",
+        "Validate state before allowing an operation."
+      ],
+      "rightPanel": {
+        "heading": "Edge Cases",
+        "bullets": [
+          "Reject unsupported input before mutating state.",
+          "Validate availability before assigning resources.",
+          "Validate state before allowing an operation."
+        ],
+        "interviewNote": "Edge cases reveal whether the design is robust or just happy-path."
+      },
+      "narration": "Edge Cases Reject unsupported input before mutating state. Validate availability before assigning resources. Validate state before allowing an operation. Edge cases reveal whether the design is robust or just happy-path."
+    },
+    {
+      "id": "error-handling",
+      "type": "errorHandling",
+      "title": "Error Handling",
+      "durationMs": 5500,
+      "items": [
+        "Return domain-specific errors for invalid state.",
+        "Release temporary resources on failure.",
+        "Keep failure messages actionable for callers."
+      ],
+      "rightPanel": {
+        "heading": "Error Handling",
+        "bullets": [
+          "Return domain-specific errors for invalid state.",
+          "Release temporary resources on failure.",
+          "Keep failure messages actionable for callers."
+        ],
+        "interviewNote": "Handle failure before mutating shared or persistent state."
+      },
+      "narration": "Error Handling Return domain-specific errors for invalid state. Release temporary resources on failure. Keep failure messages actionable for callers. Handle failure before mutating shared or persistent state."
+    },
+    {
+      "id": "concurrency",
+      "type": "concurrency",
+      "title": "Concurrency and Thread Safety",
+      "durationMs": 6000,
+      "items": [
+        "Lock spot assignment per floor.",
+        "Prevent two gates from reserving the same spot.",
+        "Make ticket creation idempotent for retries."
+      ],
+      "rightPanel": {
+        "heading": "Concurrency",
+        "bullets": [
+          "Lock spot assignment per floor.",
+          "Prevent two gates from reserving the same spot.",
+          "Make ticket creation idempotent for retries."
+        ],
+        "interviewNote": "Interviewers often push LLD designs with concurrent requests."
+      },
+      "narration": "Concurrency Lock spot assignment per floor. Prevent two gates from reserving the same spot. Make ticket creation idempotent for retries. Interviewers often push LLD designs with concurrent requests."
+    },
+    {
+      "id": "code-skeleton",
+      "type": "code",
+      "title": "Code Skeleton: Vehicle.java",
+      "durationMs": 8000,
+      "filename": "Vehicle.java",
+      "language": "java",
+      "code": "enum VehicleType {\n    BIKE, CAR, TRUCK\n}\n\nabstract class Vehicle {\n    private final String vehicleNumber;\n    private final VehicleType vehicleType;\n\n    protected Vehicle(String vehicleNumber, VehicleType vehicleType) {\n        this.vehicleNumber = vehicleNumber;\n        this.vehicleType = vehicleType;\n    }\n\n    public VehicleType getVehicleType() {\n        return vehicleType;\n    }\n\n    public String getVehicleNumber() {\n        return vehicleNumber;\n    }\n}\n\nclass Car extends Vehicle {\n    public Car(String vehicleNumber) {\n        super(vehicleNumber, VehicleType.CAR);\n    }\n}",
+      "charsPerSecond": 48,
+      "rightPanel": {
+        "heading": "Code Skeleton",
+        "bullets": [
+          "Show the core fields and method contracts.",
+          "Keep behavior near the object that owns the state.",
+          "Avoid turning the coordinator into a catch-all class."
+        ],
+        "interviewNote": "Code skeletons should prove design shape, not become full production code."
+      },
+      "narration": "Code Skeleton Show the core fields and method contracts. Keep behavior near the object that owns the state. Avoid turning the coordinator into a catch-all class. Code skeletons should prove design shape, not become full production code."
+    },
+    {
+      "id": "test-cases",
+      "type": "testCases",
+      "title": "Unit Test Cases",
+      "durationMs": 6000,
+      "testCases": [
+        {
+          "title": "Happy path creates the expected state changes.",
+          "scenario": "Happy path creates the expected state changes.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        },
+        {
+          "title": "Invalid input is rejected without mutation.",
+          "scenario": "Invalid input is rejected without mutation.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        },
+        {
+          "title": "Concurrent requests do not allocate the same resource twice.",
+          "scenario": "Concurrent requests do not allocate the same resource twice.",
+          "expected": "Expected state and output are produced without unintended side effects."
+        }
+      ],
+      "rightPanel": {
+        "heading": "Tests as Design Proof",
+        "bullets": [
+          "Happy path creates the expected state changes.",
+          "Invalid input is rejected without mutation.",
+          "Concurrent requests do not allocate the same resource twice."
+        ],
+        "interviewNote": "Tests prove the class responsibilities and edge cases are clear."
+      },
+      "narration": "Tests as Design Proof Happy path creates the expected state changes. Invalid input is rejected without mutation. Concurrent requests do not allocate the same resource twice. Tests prove the class responsibilities and edge cases are clear."
+    },
+    {
+      "id": "trade-offs",
+      "type": "tradeOffs",
+      "title": "Trade-offs",
+      "durationMs": 5500,
+      "items": [
+        "Simple manager class vs multiple services",
+        "Nearest spot allocation vs first available spot",
+        "Fixed fee calculation vs strategy-based fee calculation",
+        "In-memory design vs persistent storage"
+      ],
+      "rightPanel": {
+        "heading": "Trade-offs",
+        "bullets": [
+          "Simple manager class vs multiple services",
+          "Nearest spot allocation vs first available spot",
+          "Fixed fee calculation vs strategy-based fee calculation",
+          "In-memory design vs persistent storage"
+        ],
+        "interviewNote": "Strong candidates explain why they did not over-engineer."
+      },
+      "narration": "Trade-offs Simple manager class vs multiple services Nearest spot allocation vs first available spot Fixed fee calculation vs strategy-based fee calculation In-memory design vs persistent storage Strong candidates explain why they did not over-engineer."
+    },
+    {
+      "id": "pitfalls",
+      "type": "pitfalls",
+      "title": "Interview Pitfalls",
+      "durationMs": 5000,
+      "items": [
+        "Putting all logic inside one ParkingLot class",
+        "Ignoring vehicle type compatibility",
+        "Not freeing the spot on exit",
+        "Skipping sequence flow explanation"
+      ],
+      "rightPanel": {
+        "heading": "Mistakes to Avoid",
+        "bullets": [
+          "Putting all logic inside one ParkingLot class",
+          "Ignoring vehicle type compatibility",
+          "Not freeing the spot on exit",
+          "Skipping sequence flow explanation"
+        ],
+        "interviewNote": "Calling out pitfalls shows you understand failure modes."
+      },
+      "narration": "Mistakes to Avoid Putting all logic inside one ParkingLot class Ignoring vehicle type compatibility Not freeing the spot on exit Skipping sequence flow explanation Calling out pitfalls shows you understand failure modes."
+    },
+    {
+      "id": "summary",
+      "type": "summary",
+      "title": "Final LLD Summary",
+      "durationMs": 5000,
+      "entities": [
+        {
+          "id": "vehicle",
+          "name": "Vehicle",
+          "type": "abstract-class",
+          "responsibility": "Base class for all vehicles",
+          "fields": [
+            "vehicleNumber",
+            "vehicleType"
+          ],
+          "methods": [
+            "getVehicleType()",
+            "getVehicleNumber()"
+          ]
+        },
+        {
+          "id": "car",
+          "name": "Car",
+          "type": "class",
+          "extends": "Vehicle",
+          "responsibility": "Represents a car vehicle"
+        },
+        {
+          "id": "parkingFloor",
+          "name": "ParkingFloor",
+          "type": "class",
+          "responsibility": "Manages parking spots on one floor",
+          "fields": [
+            "floorId",
+            "spots"
+          ],
+          "methods": [
+            "findAvailableSpot(vehicle)"
+          ]
+        },
+        {
+          "id": "parkingSpot",
+          "name": "ParkingSpot",
+          "type": "class",
+          "responsibility": "Represents one parking slot",
+          "fields": [
+            "spotId",
+            "supportedType",
+            "parkedVehicle"
+          ],
+          "methods": [
+            "canFit(vehicle)",
+            "parkVehicle(vehicle)",
+            "removeVehicle()"
+          ]
+        },
+        {
+          "id": "parkingTicket",
+          "name": "ParkingTicket",
+          "type": "class",
+          "responsibility": "Stores parking session details",
+          "fields": [
+            "ticketId",
+            "vehicle",
+            "spot",
+            "entryTime"
+          ],
+          "methods": [
+            "getSpot()",
+            "getEntryTime()"
+          ]
+        },
+        {
+          "id": "parkingLot",
+          "name": "ParkingLot",
+          "type": "singleton",
+          "responsibility": "Main coordinator for parking and exit operations",
+          "fields": [
+            "floors"
+          ],
+          "methods": [
+            "getInstance()",
+            "parkVehicle(vehicle)",
+            "unparkVehicle(ticket)"
+          ]
+        },
+        {
+          "id": "feeStrategy",
+          "name": "FeeCalculationStrategy",
+          "type": "strategy",
+          "responsibility": "Calculates parking fee using pluggable pricing rules",
+          "methods": [
+            "calculateFee(ticket)"
+          ]
+        }
+      ],
+      "summaryBullets": [
+        "Requirements map to public methods.",
+        "Classes own focused state and behavior.",
+        "Sequence and state diagrams prove runtime correctness.",
+        "Tests and trade-offs close the interview discussion."
+      ],
+      "rightPanel": {
+        "heading": "Final Summary",
+        "bullets": [
+          "ParkingLot coordinates core use cases.",
+          "Vehicle, Car, ParkingFloor carry primary state.",
+          "Park Vehicle Flow explains object collaboration.",
+          "Edge cases, tests, and trade-offs make the design interview-ready."
+        ],
+        "interviewNote": "End by showing how the design can evolve without changing everything."
+      },
+      "narration": "Final Summary ParkingLot coordinates core use cases. Vehicle, Car, ParkingFloor carry primary state. Park Vehicle Flow explains object collaboration. Edge cases, tests, and trade-offs make the design interview-ready. End by showing how the design can evolve without changing everything."
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "title": "End Screen",
+      "durationMs": 2600,
+      "text": "LLD Visualizer Video Studio",
+      "rightPanel": {
+        "heading": "Next Steps",
+        "bullets": [
+          "Add persistence and external API boundaries.",
+          "Add metrics and operational failure handling.",
+          "Revisit trade-offs if requirements change."
+        ],
+        "interviewNote": "A good LLD answer is scoped, testable, and extensible."
+      },
+      "narration": "Next Steps Add persistence and external API boundaries. Add metrics and operational failure handling. Revisit trade-offs if requirements change. A good LLD answer is scoped, testable, and extensible."
+    }
+  ],
+  "voiceoverScript": "## Scene 1: Title (3s)\nInterview Goal Design clean classes, interfaces, object flows, edge cases, tests, and trade-offs for Design a Parking Lot.\n\n## Scene 2: Problem Statement (5s)\nProblem Framing Model Design a Parking Lot with clear domain entities. Support support multiple parking floors and support different vehicle types. Keep the design extensible for new rules, states, and workflows. State scope, assumptions, and key workflows before drawing classes.\n\n## Scene 3: Functional Requirements (5s)\nFunctional Requirements Support multiple parking floors Support different vehicle types Assign nearest available parking spot Generate parking ticket Calculate parking fee on exit Requirements become methods, state transitions, and tests.\n\n## Scene 4: Constraints and Assumptions (5s)\nConstraints Keep the core workflow deterministic and testable. Keep state changes explicit and easy to validate. Design should support new rules without rewriting existing classes. Constraints decide whether the design needs locks, strategies, or repositories.\n\n## Scene 5: Core Objects and Classes (5.5s)\nCore Objects Vehicle: Base class for all vehicles Car: Represents a car vehicle ParkingFloor: Manages parking spots on one floor ParkingSpot: Represents one parking slot ParkingTicket: Stores parking session details ParkingLot: Main coordinator for parking and exit operations Good LLD separates object responsibilities before adding methods.\n\n## Scene 6: Class Diagram (7s)\nClass Diagram ParkingLot coordinates the main workflow. Vehicle anchors the model. Composition owns object lifetime; dependencies express collaboration. Long explanations stay in the panel so the diagram remains clean. Use the diagram to prove ownership and collaboration, not to dump text.\n\n## Scene 7: Interface Design (5.5s)\nInterface Contracts FeeCalculationStrategy: Calculates parking fee using pluggable pricing rules Use interfaces only where behavior genuinely varies.\n\n## Scene 8: Public Method Contracts (6.2s)\nPublic Methods Vehicle.getVehicleType(): Base class for all vehicles Vehicle.getVehicleNumber(): Base class for all vehicles ParkingFloor.findAvailableSpot(vehicle): Manages parking spots on one floor ParkingSpot.canFit(vehicle): Represents one parking slot ParkingSpot.parkVehicle(vehicle): Represents one parking slot Method contracts turn requirements into testable behavior.\n\n## Scene 9: Object Collaboration Flow (6s)\nPark Vehicle Flow Driver calls ParkingLot.parkVehicle(car) ParkingLot calls ParkingFloor.findAvailableSpot(vehicle) ParkingFloor calls ParkingSpot.canFit(vehicle) ParkingSpot calls ParkingSpot.parkVehicle(vehicle) ParkingLot calls ParkingTicket.createTicket(vehicle, spot) A collaboration flow proves that the class model is executable.\n\n## Scene 10: Exit Vehicle Flow (6.2s)\nExit Vehicle Flow Driver exits using the parking ticket. Parking lot calculates the fee using the selected fee strategy. The occupied spot is freed after payment. Sequence diagrams expose missing dependencies and invalid state changes.\n\n## Scene 11: State Transitions (6s)\nState Machine SpotAvailable -> SpotReserved: SpotAvailable -> SpotReserved on entry. SpotReserved -> SpotOccupied: SpotReserved -> SpotOccupied after vehicle parks. SpotOccupied -> SpotAvailable: SpotOccupied -> SpotAvailable after paid exit. Explicit states prevent invalid operations from slipping into code.\n\n## Scene 12: Design Pattern Choice (5s)\nSingleton Used in ParkingLot Only one central parking lot manager should coordinate all parking operations. Name a pattern only when it solves a concrete design pressure.\n\n## Scene 13: Data Structures Used (5s)\nData Structures Map floorId to ParkingFloor. Priority queue or ordered list for nearest available spots. Map ticketId to active ParkingTicket. Data structures should justify time complexity and state ownership.\n\n## Scene 14: Edge Cases (6s)\nEdge Cases Reject unsupported input before mutating state. Validate availability before assigning resources. Validate state before allowing an operation. Edge cases reveal whether the design is robust or just happy-path.\n\n## Scene 15: Error Handling (5.5s)\nError Handling Return domain-specific errors for invalid state. Release temporary resources on failure. Keep failure messages actionable for callers. Handle failure before mutating shared or persistent state.\n\n## Scene 16: Concurrency and Thread Safety (6s)\nConcurrency Lock spot assignment per floor. Prevent two gates from reserving the same spot. Make ticket creation idempotent for retries. Interviewers often push LLD designs with concurrent requests.\n\n## Scene 17: Code Skeleton: Vehicle.java (8s)\nCode Skeleton Show the core fields and method contracts. Keep behavior near the object that owns the state. Avoid turning the coordinator into a catch-all class. Code skeletons should prove design shape, not become full production code.\n\n## Scene 18: Unit Test Cases (6s)\nTests as Design Proof Happy path creates the expected state changes. Invalid input is rejected without mutation. Concurrent requests do not allocate the same resource twice. Tests prove the class responsibilities and edge cases are clear.\n\n## Scene 19: Trade-offs (5.5s)\nTrade-offs Simple manager class vs multiple services Nearest spot allocation vs first available spot Fixed fee calculation vs strategy-based fee calculation In-memory design vs persistent storage Strong candidates explain why they did not over-engineer.\n\n## Scene 20: Interview Pitfalls (5s)\nMistakes to Avoid Putting all logic inside one ParkingLot class Ignoring vehicle type compatibility Not freeing the spot on exit Skipping sequence flow explanation Calling out pitfalls shows you understand failure modes.\n\n## Scene 21: Final LLD Summary (5s)\nFinal Summary ParkingLot coordinates core use cases. Vehicle, Car, ParkingFloor carry primary state. Park Vehicle Flow explains object collaboration. Edge cases, tests, and trade-offs make the design interview-ready. End by showing how the design can evolve without changing everything.\n\n## Scene 22: End Screen (2.6s)\nNext Steps Add persistence and external API boundaries. Add metrics and operational failure handling. Revisit trade-offs if requirements change. A good LLD answer is scoped, testable, and extensible.\n",
+  "cleanVoiceoverScript": "Interview Goal Design clean classes, interfaces, object flows, edge cases, tests, and trade-offs for Design a Parking Lot.\n\nProblem Framing Model Design a Parking Lot with clear domain entities. Support support multiple parking floors and support different vehicle types. Keep the design extensible for new rules, states, and workflows. State scope, assumptions, and key workflows before drawing classes.\n\nFunctional Requirements Support multiple parking floors Support different vehicle types Assign nearest available parking spot Generate parking ticket Calculate parking fee on exit Requirements become methods, state transitions, and tests.\n\nConstraints Keep the core workflow deterministic and testable. Keep state changes explicit and easy to validate. Design should support new rules without rewriting existing classes. Constraints decide whether the design needs locks, strategies, or repositories.\n\nCore Objects Vehicle: Base class for all vehicles Car: Represents a car vehicle ParkingFloor: Manages parking spots on one floor ParkingSpot: Represents one parking slot ParkingTicket: Stores parking session details ParkingLot: Main coordinator for parking and exit operations Good LLD separates object responsibilities before adding methods.\n\nClass Diagram ParkingLot coordinates the main workflow. Vehicle anchors the model. Composition owns object lifetime; dependencies express collaboration. Long explanations stay in the panel so the diagram remains clean. Use the diagram to prove ownership and collaboration, not to dump text.\n\nInterface Contracts FeeCalculationStrategy: Calculates parking fee using pluggable pricing rules Use interfaces only where behavior genuinely varies.\n\nPublic Methods Vehicle.getVehicleType(): Base class for all vehicles Vehicle.getVehicleNumber(): Base class for all vehicles ParkingFloor.findAvailableSpot(vehicle): Manages parking spots on one floor ParkingSpot.canFit(vehicle): Represents one parking slot ParkingSpot.parkVehicle(vehicle): Represents one parking slot Method contracts turn requirements into testable behavior.\n\nPark Vehicle Flow Driver calls ParkingLot.parkVehicle(car) ParkingLot calls ParkingFloor.findAvailableSpot(vehicle) ParkingFloor calls ParkingSpot.canFit(vehicle) ParkingSpot calls ParkingSpot.parkVehicle(vehicle) ParkingLot calls ParkingTicket.createTicket(vehicle, spot) A collaboration flow proves that the class model is executable.\n\nExit Vehicle Flow Driver exits using the parking ticket. Parking lot calculates the fee using the selected fee strategy. The occupied spot is freed after payment. Sequence diagrams expose missing dependencies and invalid state changes.\n\nState Machine SpotAvailable -> SpotReserved: SpotAvailable -> SpotReserved on entry. SpotReserved -> SpotOccupied: SpotReserved -> SpotOccupied after vehicle parks. SpotOccupied -> SpotAvailable: SpotOccupied -> SpotAvailable after paid exit. Explicit states prevent invalid operations from slipping into code.\n\nSingleton Used in ParkingLot Only one central parking lot manager should coordinate all parking operations. Name a pattern only when it solves a concrete design pressure.\n\nData Structures Map floorId to ParkingFloor. Priority queue or ordered list for nearest available spots. Map ticketId to active ParkingTicket. Data structures should justify time complexity and state ownership.\n\nEdge Cases Reject unsupported input before mutating state. Validate availability before assigning resources. Validate state before allowing an operation. Edge cases reveal whether the design is robust or just happy-path.\n\nError Handling Return domain-specific errors for invalid state. Release temporary resources on failure. Keep failure messages actionable for callers. Handle failure before mutating shared or persistent state.\n\nConcurrency Lock spot assignment per floor. Prevent two gates from reserving the same spot. Make ticket creation idempotent for retries. Interviewers often push LLD designs with concurrent requests.\n\nCode Skeleton Show the core fields and method contracts. Keep behavior near the object that owns the state. Avoid turning the coordinator into a catch-all class. Code skeletons should prove design shape, not become full production code.\n\nTests as Design Proof Happy path creates the expected state changes. Invalid input is rejected without mutation. Concurrent requests do not allocate the same resource twice. Tests prove the class responsibilities and edge cases are clear.\n\nTrade-offs Simple manager class vs multiple services Nearest spot allocation vs first available spot Fixed fee calculation vs strategy-based fee calculation In-memory design vs persistent storage Strong candidates explain why they did not over-engineer.\n\nMistakes to Avoid Putting all logic inside one ParkingLot class Ignoring vehicle type compatibility Not freeing the spot on exit Skipping sequence flow explanation Calling out pitfalls shows you understand failure modes.\n\nFinal Summary ParkingLot coordinates core use cases. Vehicle, Car, ParkingFloor carry primary state. Park Vehicle Flow explains object collaboration. Edge cases, tests, and trade-offs make the design interview-ready. End by showing how the design can evolve without changing everything.\n\nNext Steps Add persistence and external API boundaries. Add metrics and operational failure handling. Revisit trade-offs if requirements change. A good LLD answer is scoped, testable, and extensible.",
+  "scriptMetadata": {
+    "sceneCount": 22,
+    "totalDurationMs": 120000,
+    "hasEditedNarration": true
+  }
+}

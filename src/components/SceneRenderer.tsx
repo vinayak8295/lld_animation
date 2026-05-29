@@ -4,9 +4,15 @@ import { CodeTypingPanel } from "./CodeTypingPanel";
 import { DryRunPanel } from "./DryRunPanel";
 import { EndScreen } from "./EndScreen";
 import { EntityCards } from "./EntityCards";
+import { InterfaceDesignPanel } from "./InterfaceDesignPanel";
+import { ListScenePanel } from "./ListScenePanel";
+import { MethodContractsPanel } from "./MethodContractsPanel";
+import { ObjectFlowPanel } from "./ObjectFlowPanel";
 import { PatternCard } from "./PatternCard";
 import { RequirementCards } from "./RequirementCards";
 import { SequenceDiagramCanvas } from "./SequenceDiagramCanvas";
+import { StateMachineCanvas } from "./StateMachineCanvas";
+import { TestCasePanel } from "./TestCasePanel";
 
 type Props = {
   scene: LldScene;
@@ -34,6 +40,23 @@ export function SceneRenderer({ scene, progress }: Props) {
       return <PatternCard scene={scene} />;
     case "sequence":
       return <SequenceDiagramCanvas scene={scene} progress={progress} />;
+    case "interfaceDesign":
+      return <InterfaceDesignPanel scene={scene} />;
+    case "methodContracts":
+      return <MethodContractsPanel scene={scene} />;
+    case "objectFlow":
+      return <ObjectFlowPanel scene={scene} />;
+    case "stateMachine":
+      return <StateMachineCanvas scene={scene} progress={progress} />;
+    case "dataStructures":
+    case "edgeCases":
+    case "errorHandling":
+    case "concurrency":
+    case "tradeOffs":
+    case "pitfalls":
+      return <ListScenePanel scene={scene} />;
+    case "testCases":
+      return <TestCasePanel scene={scene} />;
     case "code":
       return <CodeTypingPanel scene={scene} progress={progress} />;
     case "dryRun":

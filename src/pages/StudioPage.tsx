@@ -1,7 +1,8 @@
-import { Download, FileJson, Monitor, Smartphone, WandSparkles } from "lucide-react";
+import { Download, FileJson, FileText, Monitor, Presentation, Smartphone, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createExport, fetchExportStatus } from "../export/exportApi";
+import { createExport, createPpt, fetchExportStatus, fetchPptStatus } from "../export/exportApi";
 import type { ExportStatus } from "../export/exportTypes";
+import { applyVoiceoverScriptToScenes, generateElevenLabsCleanScript, generateVoiceoverScript } from "../export/voiceoverScript";
 import { usePlayback } from "../engine/playbackEngine";
 import type { LldScene } from "../engine/sceneTypes";
 import { generateLldTimeline } from "../engine/timelineEngine";
@@ -9,17 +10,23 @@ import { JsonInputPanel } from "../components/JsonInputPanel";
 import { PlaybackControls } from "../components/PlaybackControls";
 import { SceneTimeline } from "../components/SceneTimeline";
 import { VideoPreview } from "../components/VideoPreview";
+import { VoiceoverEditor } from "../components/VoiceoverEditor";
 import { interviewDemoConfigs, interviewDemoTopicOptions, parkingLotDemoConfig } from "../topics/demoConfigs";
+import { normalizeLldConfig } from "../topics/normalizeConfig";
 import type { LldVideoConfig } from "../topics/topicTypes";
 import { validateLldConfig } from "../topics/validation";
 
 export function StudioPage() {
-  const [jsonText, setJsonText] = useState(() => JSON.stringify(parkingLotDemoConfig, null, 2));
-  const [config, setConfig] = useState<LldVideoConfig>(parkingLotDemoConfig);
-  const [scenes, setScenes] = useState<LldScene[]>(() => generateLldTimeline(parkingLotDemoConfig));
+  const initialConfig = normalizeLldConfig(parkingLotDemoConfig);
+  const [jsonText, setJsonText] = useState(() => JSON.stringify(initialConfig, null, 2));
+  const [config, setConfig] = useState<LldVideoConfig>(initialConfig);
+  const [scenes, setScenes] = useState<LldScene[]>(() => generateLldTimeline(initialConfig));
   const [errors, setErrors] = useState<string[]>([]);
   const [exportStatus, setExportStatus] = useState<ExportStatus | null>(null);
+  const [pptStatus, setPptStatus] = useState<ExportStatus | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPptExporting, setIsPptExporting] = useState(false);
+  const [voiceoverScript, setVoiceoverScript] = useState(() => generateVoiceoverScript(generateLldTimeline(initialConfig)));
   const playback = usePlayback(scenes);
   const scene = scenes[playback.state.currentSceneIndex];
   const orientation = config.settings.orientation;
@@ -32,15 +39,17 @@ export function StudioPage() {
   function parseCurrentJson() {
     try {
       const parsed = JSON.parse(jsonText) as LldVideoConfig;
-      const nextScenes = generateLldTimeline(parsed);
-      const validationErrors = validateLldConfig(parsed, nextScenes);
+      const normalized = normalizeLldConfig(parsed);
+      const nextScenes = generateLldTimeline(normalized);
+      const validationErrors = validateLldConfig(normalized, nextScenes);
       setErrors(validationErrors);
       if (validationErrors.length === 0) {
-        setConfig(parsed);
+        setConfig(normalized);
         setScenes(nextScenes);
+        setVoiceoverScript(generateVoiceoverScript(nextScenes));
         playback.restart();
       }
-      return { parsed, nextScenes, validationErrors };
+      return { parsed: normalized, nextScenes, validationErrors };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid JSON.";
       setErrors([message]);
@@ -49,12 +58,16 @@ export function StudioPage() {
   }
 
   function loadDemo(nextDemo: LldVideoConfig = config) {
-    const demo = JSON.stringify(nextDemo, null, 2);
+    const normalizedDemo = normalizeLldConfig(nextDemo);
+    const demo = JSON.stringify(normalizedDemo, null, 2);
     setJsonText(demo);
-    setConfig(nextDemo);
-    setScenes(generateLldTimeline(nextDemo));
+    setConfig(normalizedDemo);
+    const nextScenes = generateLldTimeline(normalizedDemo);
+    setScenes(nextScenes);
+    setVoiceoverScript(generateVoiceoverScript(nextScenes));
     setErrors([]);
     setExportStatus(null);
+    setPptStatus(null);
   }
 
   function updateConfigPatch(patch: Partial<LldVideoConfig["settings"]>) {
@@ -63,7 +76,19 @@ export function StudioPage() {
     setJsonText(JSON.stringify(nextConfig, null, 2));
     const nextScenes = generateLldTimeline(nextConfig);
     setScenes(nextScenes);
+    setVoiceoverScript(generateVoiceoverScript(nextScenes));
     setErrors(validateLldConfig(nextConfig, nextScenes));
+  }
+
+  function applyScript() {
+    const updatedScenes = applyVoiceoverScriptToScenes(scenes, voiceoverScript);
+    setScenes(updatedScenes);
+    setVoiceoverScript(generateVoiceoverScript(updatedScenes));
+  }
+
+  function regenerateScript() {
+    const regenerated = generateVoiceoverScript(scenes);
+    setVoiceoverScript(regenerated);
   }
 
   async function exportMp4() {
@@ -77,7 +102,10 @@ export function StudioPage() {
       message: "Queued export..."
     });
     try {
-      const { exportId } = await createExport(parsed.parsed, parsed.nextScenes);
+      const scriptedScenes = applyVoiceoverScriptToScenes(parsed.nextScenes, voiceoverScript);
+      const fullScript = generateVoiceoverScript(scriptedScenes);
+      const cleanScript = generateElevenLabsCleanScript(fullScript);
+      const { exportId } = await createExport(parsed.parsed, scriptedScenes, fullScript, cleanScript);
       const timer = window.setInterval(async () => {
         const status = await fetchExportStatus(exportId);
         setExportStatus(status);
@@ -94,6 +122,39 @@ export function StudioPage() {
         progress: 0,
         message: "Export failed.",
         error: error instanceof Error ? error.message : "Unknown export error."
+      });
+    }
+  }
+
+  async function exportPpt() {
+    const parsed = parseCurrentJson();
+    if (!parsed || parsed.validationErrors.length > 0) return;
+    setIsPptExporting(true);
+    setPptStatus({
+      exportId: "pending",
+      state: "queued",
+      progress: 0,
+      message: "Queued PPT export..."
+    });
+    try {
+      const scriptedScenes = applyVoiceoverScriptToScenes(parsed.nextScenes, voiceoverScript);
+      const { exportId } = await createPpt(parsed.parsed, scriptedScenes, generateVoiceoverScript(scriptedScenes));
+      const timer = window.setInterval(async () => {
+        const status = await fetchPptStatus(exportId);
+        setPptStatus(status);
+        if (status.state === "complete" || status.state === "failed") {
+          window.clearInterval(timer);
+          setIsPptExporting(false);
+        }
+      }, 1200);
+    } catch (error) {
+      setIsPptExporting(false);
+      setPptStatus({
+        exportId: "failed",
+        state: "failed",
+        progress: 0,
+        message: "PPT export failed.",
+        error: error instanceof Error ? error.message : "Unknown PPT export error."
       });
     }
   }
@@ -201,15 +262,46 @@ export function StudioPage() {
               <span>Export MP4</span>
             </button>
 
+            <button type="button" onClick={exportPpt} disabled={isPptExporting || errors.length > 0}>
+              <Presentation size={18} />
+              <span>Export PPT</span>
+            </button>
+
             {exportStatus && (
               <div className={`export-status ${exportStatus.state}`}>
                 <strong>{exportStatus.message}</strong>
                 <progress value={exportStatus.progress} max={100} />
                 {exportStatus.downloadUrl && <a href={exportStatus.downloadUrl}>Download output.mp4</a>}
+                {exportStatus.state === "complete" && (
+                  <>
+                    <a href={`/api/export/${exportStatus.exportId}/script`}>
+                      <FileText size={14} /> Full voiceover script
+                    </a>
+                    <a href={`/api/export/${exportStatus.exportId}/elevenlabs-script`}>
+                      <FileText size={14} /> ElevenLabs-clean script
+                    </a>
+                  </>
+                )}
                 {exportStatus.error && <p>{exportStatus.error}</p>}
               </div>
             )}
+
+            {pptStatus && (
+              <div className={`export-status ${pptStatus.state}`}>
+                <strong>{pptStatus.message}</strong>
+                <progress value={pptStatus.progress} max={100} />
+                {pptStatus.downloadUrl && <a href={pptStatus.downloadUrl}>Download deck.pptx</a>}
+                {pptStatus.error && <p>{pptStatus.error}</p>}
+              </div>
+            )}
           </section>
+
+          <VoiceoverEditor
+            value={voiceoverScript}
+            onChange={setVoiceoverScript}
+            onApply={applyScript}
+            onRegenerate={regenerateScript}
+          />
         </aside>
 
         <section className="right-workspace">

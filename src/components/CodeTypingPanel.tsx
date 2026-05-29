@@ -1,4 +1,5 @@
 import type { LldCodeScene } from "../engine/sceneTypes";
+import { mentionedToken } from "../engine/visualSemantics";
 
 type Props = {
   scene: LldCodeScene;
@@ -20,7 +21,7 @@ export function CodeTypingPanel({ scene, progress }: Props) {
       <pre>
         <code>
           {visibleLines.map((line, index) => (
-            <span className={classifyLine(line)} key={`${index}-${line}`}>
+            <span className={`${classifyLine(line)} ${mentionedToken(scene.narration, line.trim().split(/[({ ]/)[0] ?? "") ? "line-active" : ""}`} key={`${index}-${line}`}>
               {line || " "}
               {"\n"}
             </span>
